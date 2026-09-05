@@ -17,10 +17,9 @@ cp .env.example .env.local
 npm run dev
 ```
 
-`.env.local` defaults to `VITE_AUTH_MODE=dummy`, which runs the prototype login with
-hardcoded users — no AWS needed. To use real Cognito, set `VITE_AUTH_MODE=cognito`
-and fill in the pool ID, client ID and region (see `.env.example` for where to find
-each in the AWS console).
+Cognito config is required: fill in the pool ID, client ID and region in `.env.local`
+(see `.env.example` for where to find each in the AWS console). The app fails loudly
+at startup if any is missing.
 
 Requires Node 20+.
 
@@ -41,31 +40,28 @@ Lint findings do not block a commit; type errors and failing tests do.
 
 ## Auth
 
-Authentication is AWS Cognito (SRP, custom login form — not the Hosted UI).
-Roles come from **Cognito Groups**, read off the `cognito:groups` claim in the ID
-token. Group names match the values in `src/auth/roles.ts` exactly:
+**Cognito authenticates; the backend authorizes.** Sign-in is AWS Cognito (SRP,
+custom form — not the Hosted UI), which yields a signed JWT proving identity. The
+role comes from `GET /api/users/me`, which reads `t_user.role` in the backend's
+database. Cognito groups are not used.
 
-| Group | Lands on |
+| Role | Lands on |
 |---|---|
-| `compliance-officer` | `/review` |
-| `internal-developer` | `/developer` |
-| `compliance-manager` | `/management` |
+| `COMPLIANCE_OFFICER` | `/review` |
+| `ADMIN` | `/management` |
 
-Groups rather than a `custom:role` attribute, because a user can rewrite their own
-attributes via the Cognito API with just their access token — group membership needs
-IAM credentials a browser never has.
+The ID token (not the access token) is sent as the bearer, because the backend
+needs its `email`/`name` claims to provision a user on first sign-in.
 
 Tokens live in `sessionStorage`, so closing the tab signs you out.
 
-`VITE_AUTH_MODE=dummy` swaps Cognito for `src/auth/dummy-users.ts` and shows the demo
-credentials on the login screen. That branch is temporary scaffolding.
+`require-role.tsx` is a UI affordance and can be bypassed in the browser — real
+enforcement is `@PreAuthorize` on the backend, which checks the database role on
+every request.
 
-### Not enforced yet
-
-There is no backend. `require-role.tsx` decides which screens render, but it is a UI
-affordance — it can be bypassed in the browser. Cognito gives trustworthy *identity*,
-not authorization. Verdicts currently live only in React state, so nothing is at risk
-today; once they persist, the `cognito:groups` check has to move server-side.
+Requires the backend (`fyp-be/media-processing-service`) running on :8080. Its
+`AWS_COGNITO_APP_CLIENT_ID` must include this app's client ID, and its
+`CORS_ALLOWED_ORIGINS` must include `http://localhost:5173`.
 
 ## Layout
 
