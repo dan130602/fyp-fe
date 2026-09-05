@@ -1,9 +1,8 @@
-// The three roles and their home routes; require-role.jsx enforces SoD using this.
+// Roles and their home routes; values match the backend's Role enum (t_user.role is authoritative).
 
 export const ROLES = {
-  OFFICER: "compliance-officer",
-  DEVELOPER: "internal-developer",
-  MANAGER: "compliance-manager",
+  ADMIN: "ADMIN",
+  OFFICER: "COMPLIANCE_OFFICER",
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
@@ -12,21 +11,18 @@ export interface AuthUser {
   username: string;
   name: string;
   initials: string;
-  role: Role | null;
 }
 
 export type LoginResult = { ok: true; user: AuthUser } | { ok: false; error: string };
 
 export const ROLE_LABELS: Record<Role, string> = {
+  [ROLES.ADMIN]: "Compliance manager",
   [ROLES.OFFICER]: "Compliance officer",
-  [ROLES.DEVELOPER]: "Internal developer",
-  [ROLES.MANAGER]: "Compliance manager",
 };
 
 export const ROLE_HOME: Record<Role, string> = {
+  [ROLES.ADMIN]: "/management",
   [ROLES.OFFICER]: "/review",
-  [ROLES.DEVELOPER]: "/developer",
-  [ROLES.MANAGER]: "/management",
 };
 
 export function homeRouteFor(role: Role | null | undefined): string {

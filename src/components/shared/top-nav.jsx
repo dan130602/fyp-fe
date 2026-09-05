@@ -9,7 +9,7 @@ import Button from "./button.jsx";
  * chrome without competing with it.
  */
 export default function TopNav() {
-  const { user, logout } = useAuth();
+  const { user, role, logout } = useAuth();
   if (!user) return null;
 
   return (
@@ -18,7 +18,7 @@ export default function TopNav() {
         <span>✓</span>ClearCall
       </div>
       <div className="topnav-session">
-        <Badge tone="info">{labelForRole(user.role)}</Badge>
+        <Badge tone="info">{labelForRole(role)}</Badge>
         <span className="topnav-user">
           <b>{user.name}</b>
           <small>@{user.username}</small>

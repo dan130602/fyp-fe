@@ -1,4 +1,4 @@
-// Real Cognito auth: sessionStorage-backed tokens, role resolved from cognito:groups.
+// Real Cognito auth: sessionStorage-backed tokens. Identity only; /me supplies the role.
 import {
   AuthenticationDetails,
   CognitoUser,
@@ -8,7 +8,7 @@ import {
 } from "amazon-cognito-identity-js";
 import { createLogger } from "../lib/logger.ts";
 import { cognitoConfig } from "./cognito-config.ts";
-import { type AuthUser, type LoginResult, ROLES, type Role } from "./roles.ts";
+import type { AuthUser, LoginResult } from "./roles.ts";
 
 const log = createLogger("auth");
 const DEV = import.meta.env.DEV;
@@ -16,14 +16,10 @@ const DEV = import.meta.env.DEV;
 /** Claims read off the ID token payload, narrowed from decodePayload()'s `any`. */
 interface IdTokenPayload {
   "cognito:username"?: string;
-  "cognito:groups"?: unknown;
   name?: string;
   email?: string;
   exp?: number;
 }
-
-/** Priority order for a multi-group user; earlier wins. Unrecognised groups are ignored. */
-const ROLE_PRIORITY: Role[] = [ROLES.OFFICER, ROLES.MANAGER, ROLES.DEVELOPER];
 
 /** sessionStorage wrapped as ICognitoStorage, keeping tokens out of localStorage. */
 const sessionBackedStorage: ICognitoStorage = {
@@ -79,15 +75,7 @@ export function resolveName(payload: IdTokenPayload): string {
   return payload["cognito:username"] ?? "";
 }
 
-/** Returns null (never a default) for no recognised group — an unassigned user must fail. */
-export function resolveRole(payload: IdTokenPayload): Role | null {
-  const groups = Array.isArray(payload["cognito:groups"]) ? payload["cognito:groups"] : [];
-  const role = ROLE_PRIORITY.find((role) => groups.includes(role)) ?? null;
-  DEV && log.debug("Resolved role", role, "from cognito:groups", groups);
-  return role;
-}
-
-/** Maps a session to this app's user shape, reading profile and group claims off the ID token. */
+/** Maps a session to this app's user shape, reading profile claims off the ID token. */
 function sessionToUser(session: CognitoUserSession): AuthUser {
   const payload = session.getIdToken().decodePayload() as IdTokenPayload;
   const name = resolveName(payload);
@@ -97,7 +85,6 @@ function sessionToUser(session: CognitoUserSession): AuthUser {
     username: payload["cognito:username"] ?? "",
     name,
     initials: initialsFor(name),
-    role: resolveRole(payload),
   };
 }
 
@@ -137,15 +124,7 @@ export function signIn(username: string, password: string): Promise<LoginResult>
     cognitoUser.authenticateUser(authDetails, {
       onSuccess: (session) => {
         const user = sessionToUser(session);
-        if (!user.role) {
-          log.warn("Sign-in succeeded for", username, "but no role is assigned");
-          resolve({
-            ok: false,
-            error: "Your account has no role assigned. Contact an administrator.",
-          });
-          return;
-        }
-        DEV && log.info("Sign-in succeeded for", username, "with role", user.role);
+        DEV && log.info("Sign-in succeeded for", username);
         resolve({ ok: true, user });
       },
 
