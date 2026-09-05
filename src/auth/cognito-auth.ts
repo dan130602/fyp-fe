@@ -191,6 +191,28 @@ export function getCurrentSession(): Promise<AuthUser | null> {
   });
 }
 
+/** ID token for the API client. Goes through getSession() so an expired token is refreshed. */
+export function getIdToken(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const cognitoUser = userPool.getCurrentUser();
+    if (!cognitoUser) {
+      resolve(null);
+      return;
+    }
+
+    function onSession(error: Error, session: null): void;
+    function onSession(error: null, session: CognitoUserSession): void;
+    function onSession(error: Error | null, session: CognitoUserSession | null): void {
+      if (error || !session || !session.isValid()) {
+        resolve(null);
+        return;
+      }
+      resolve(session.getIdToken().getJwtToken());
+    }
+    cognitoUser.getSession(onSession);
+  });
+}
+
 export function signOut(): void {
   const cognitoUser = userPool.getCurrentUser();
   if (cognitoUser) {
