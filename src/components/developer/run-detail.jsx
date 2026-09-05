@@ -20,8 +20,14 @@ export default function RunDetail({ run, live, questions, nextVersion, onPatch, 
         <div className="eh">Decision</div>
         <div className="dec">
           {["Candidate", "Rejected"].map((status) => (
-            <button key={status} className="db" data-on={run.status === status}
-              onClick={() => onPatch(run.id, { status })}>{status}</button>
+            <button
+              key={status}
+              className="db"
+              data-on={run.status === status}
+              onClick={() => onPatch(run.id, { status })}
+            >
+              {status}
+            </button>
           ))}
         </div>
         <textarea
@@ -33,8 +39,11 @@ export default function RunDetail({ run, live, questions, nextVersion, onPatch, 
           <button className="btn" onClick={() => onPatch(run.id, { decided: "Team · today" })}>
             <Check size={11} /> Record decision
           </button>
-          <button className="btn pri" disabled={run.status === "Deployed"}
-            onClick={() => onPromote(run.id)}>
+          <button
+            className="btn pri"
+            disabled={run.status === "Deployed"}
+            onClick={() => onPromote(run.id)}
+          >
             <Upload size={11} />
             {run.status === "Deployed" ? `Deployed as ${run.version}` : `Promote to ${nextVersion}`}
           </button>
@@ -59,21 +68,40 @@ export default function RunDetail({ run, live, questions, nextVersion, onPatch, 
       <div onClick={stop}>
         <div className="eh">Layer scores & confusion</div>
         <div className="stat">
-          <div><div className="sv">{run.layers.l0}%</div><div className="sl">L0 schema</div></div>
-          <div><div className="sv">{run.layers.l1}%</div><div className="sl">L1 grounded</div></div>
-          <div><div className="sv">{run.layers.l5}%</div><div className="sl">L5 stable</div></div>
+          <div>
+            <div className="sv">{run.layers.l0}%</div>
+            <div className="sl">L0 schema</div>
+          </div>
+          <div>
+            <div className="sv">{run.layers.l1}%</div>
+            <div className="sl">L1 grounded</div>
+          </div>
+          <div>
+            <div className="sv">{run.layers.l5}%</div>
+            <div className="sl">L5 stable</div>
+          </div>
         </div>
         <ConfusionMatrix cm={run.cm} />
-        <div className="eh" style={{ marginTop: 15 }}>Run record</div>
+        <div className="eh" style={{ marginTop: 15 }}>
+          Run record
+        </div>
         <dl className="kv">
-          <dt>dataset</dt><dd>{run.dataset} · {run.items}</dd>
+          <dt>dataset</dt>
+          <dd>
+            {run.dataset} · {run.items}
+          </dd>
           <dt>escalation</dt>
           <dd>{escalatesMoreThanLive(run, live) ? <em>{run.esc}%</em> : `${run.esc}%`}</dd>
-          <dt>cost/call</dt><dd>{formatCost(run.cost)}</dd>
-          <dt>p95</dt><dd>{formatSeconds(run.latency)}</dd>
-          <dt>runtime</dt><dd>{run.runtime}</dd>
-          <dt>ran by</dt><dd>{run.ranBy}</dd>
-          <dt>decided</dt><dd>{run.decided}</dd>
+          <dt>cost/call</dt>
+          <dd>{formatCost(run.cost)}</dd>
+          <dt>p95</dt>
+          <dd>{formatSeconds(run.latency)}</dd>
+          <dt>runtime</dt>
+          <dd>{run.runtime}</dd>
+          <dt>ran by</dt>
+          <dd>{run.ranBy}</dd>
+          <dt>decided</dt>
+          <dd>{run.decided}</dd>
         </dl>
       </div>
     </div>

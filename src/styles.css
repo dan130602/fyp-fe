@@ -14,33 +14,105 @@
    colour.
 --------------------------------------------------------------------------- */
 
-:root{
+:root {
   /* app palette */
-  --nav:#102a43;--nav2:#1a4164;--ink:#152c46;--text:#42566d;--muted:#74869a;
-  --bg:#f4f7fa;--card:#fff;--line:#e1e8ef;
-  --blue:#296ee8;--blue-soft:#e9f1ff;
-  --green:#138473;--green-soft:#e5f6f1;
-  --amber:#b56b00;--amber-soft:#fff2d9;
-  --red:#c53d50;--red-soft:#ffedf0;
-  --shadow:0 10px 28px rgba(29,52,78,.07);
+  --nav: #102a43;
+  --nav2: #1a4164;
+  --ink: #152c46;
+  --text: #42566d;
+  --muted: #74869a;
+  --bg: #f4f7fa;
+  --card: #fff;
+  --line: #e1e8ef;
+  --blue: #296ee8;
+  --blue-soft: #e9f1ff;
+  --green: #138473;
+  --green-soft: #e5f6f1;
+  --amber: #b56b00;
+  --amber-soft: #fff2d9;
+  --red: #c53d50;
+  --red-soft: #ffedf0;
+  --shadow: 0 10px 28px rgba(29, 52, 78, 0.07);
 
   /* developer view palette */
-  --dev-ink:#14181c;--dev-ink2:#39424c;--dev-muted:#78828e;
-  --dev-paper:#fff;--dev-ground:#e9ebee;--dev-rule:#d6dae0;--dev-soft:#eaedf1;
-  --dev-gain:#1c6350;--dev-loss:#9a3b2b;--dev-navy:#1e3a63;--dev-amber:#8a6212;
+  --dev-ink: #14181c;
+  --dev-ink2: #39424c;
+  --dev-muted: #78828e;
+  --dev-paper: #fff;
+  --dev-ground: #e9ebee;
+  --dev-rule: #d6dae0;
+  --dev-soft: #eaedf1;
+  --dev-gain: #1c6350;
+  --dev-loss: #9a3b2b;
+  --dev-navy: #1e3a63;
+  --dev-amber: #8a6212;
 }
 
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font:
+    14px / 1.45 Inter,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+}
 
 /* primitives backing components/shared/button.jsx and badge.jsx */
-button,textarea{font:inherit}
-button{cursor:pointer;border:1px solid var(--line);border-radius:7px;padding:8px 12px;background:#fff;color:var(--text);font-size:12px;font-weight:750}
-.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-.danger{background:var(--red);border-color:var(--red);color:#fff}
-.ghost{opacity:.82}
-.badge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:9px;font-weight:850;letter-spacing:.02em}
-.good,.pass{color:var(--green);background:var(--green-soft)}
-.watch{color:var(--amber);background:var(--amber-soft)}
-.risk{color:var(--red);background:var(--red-soft)}
-.info{color:#466db8;background:var(--blue-soft)}
+button,
+textarea {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 12px;
+  background: #fff;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+}
+.primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.ghost {
+  opacity: 0.82;
+}
+.badge {
+  display: inline-block;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+}
+.good,
+.pass {
+  color: var(--green);
+  background: var(--green-soft);
+}
+.watch {
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+.risk {
+  color: var(--red);
+  background: var(--red-soft);
+}
+.info {
+  color: #466db8;
+  background: var(--blue-soft);
+}

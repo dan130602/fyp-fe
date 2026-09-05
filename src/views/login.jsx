@@ -1,21 +1,20 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth/auth-context.jsx";
-import { isCognitoMode } from "../auth/cognito-config.js";
-import { listDemoAccounts } from "../auth/dummy-users.js";
-import { homeRouteFor, labelForRole } from "../auth/roles.js";
+import { homeRouteFor } from "../auth/roles.js";
 import Button from "../components/shared/button.jsx";
 import "../components/shared/shell.css";
 
 export default function Login() {
-  const { user, login } = useAuth();
-  const navigate = useNavigate();
+  const { user, role, loading, login } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (user) return <Navigate to={homeRouteFor(user.role)} replace />;
+  // While loading (rehydrating, or /me still resolving the role), wait rather than redirect early.
+  if (loading) return null;
+  if (user) return <Navigate to={homeRouteFor(role)} replace />;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -28,7 +27,7 @@ export default function Login() {
         setError(result.error);
         return;
       }
-      navigate(homeRouteFor(result.user.role), { replace: true });
+      // The redirect above fires once `user`/`role` settle on the next render.
     } finally {
       setSubmitting(false);
     }
@@ -71,35 +70,6 @@ export default function Login() {
         <Button variant="primary" type="submit" className="login-submit" disabled={submitting}>
           {submitting ? "Signing in…" : "Sign in"}
         </Button>
-
-        {!isCognitoMode() && (
-          <div className="login-demo">
-            <h2>Demo accounts</h2>
-            <p>Prototype credentials — no backend, no password storage.</p>
-            <table>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Password</th>
-                  <th>Role</th>
-                </tr>
-              </thead>
-              <tbody>
-                {listDemoAccounts().map((account) => (
-                  <tr key={account.username}>
-                    <td>
-                      <code>{account.username}</code>
-                    </td>
-                    <td>
-                      <code>{account.password}</code>
-                    </td>
-                    <td>{labelForRole(account.role)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </form>
     </div>
   );

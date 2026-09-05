@@ -1,33 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialsFor, mapAuthError, resolveName, resolveRole } from "../cognito-auth.ts";
-
-describe("resolveRole", () => {
-  it("returns the single group present", () => {
-    expect(resolveRole({ "cognito:groups": ["compliance-manager"] })).toBe("compliance-manager");
-  });
-
-  it("prioritises officer over manager and developer when all three are present", () => {
-    const groups = ["internal-developer", "compliance-manager", "compliance-officer"];
-    expect(resolveRole({ "cognito:groups": groups })).toBe("compliance-officer");
-  });
-
-  it("prioritises manager over developer when both are present", () => {
-    const groups = ["internal-developer", "compliance-manager"];
-    expect(resolveRole({ "cognito:groups": groups })).toBe("compliance-manager");
-  });
-
-  it("returns null when only unrecognised groups are present", () => {
-    expect(resolveRole({ "cognito:groups": ["some-other-team"] })).toBeNull();
-  });
-
-  it("returns null for an empty groups array", () => {
-    expect(resolveRole({ "cognito:groups": [] })).toBeNull();
-  });
-
-  it("returns null when cognito:groups is absent entirely", () => {
-    expect(resolveRole({})).toBeNull();
-  });
-});
+import { initialsFor, mapAuthError, resolveName } from "../cognito-auth.ts";
 
 describe("initialsFor", () => {
   it("takes the first letter of the first two words", () => {

@@ -7,22 +7,19 @@ import {
   useMemo,
   useState,
 } from "react";
+import { ApiError } from "../lib/api-client.ts";
 import { createLogger } from "../lib/logger.ts";
+import { queryClient } from "../lib/query-client.ts";
 import * as cognitoAuth from "./cognito-auth.ts";
-import { isCognitoMode } from "./cognito-config.ts";
-import { authenticate } from "./dummy-users.ts";
-import type { AuthUser, LoginResult } from "./roles.ts";
+import { roleFromBackend, useCurrentUser } from "./current-user.ts";
+import type { AuthUser, LoginResult, Role } from "./roles.ts";
 
 const log = createLogger("auth");
 const DEV = import.meta.env.DEV;
 
-// TEMPORARY SCAFFOLDING: dummy/Cognito branch below is temporary until Cognito is the only path.
-
-const STORAGE_KEY = "clearcall.session";
-
 export interface AuthContextValue {
   user: AuthUser | null;
-  role: AuthUser["role"] | null;
+  role: Role | null;
   isAuthenticated: boolean;
   loading: boolean;
   login: (username: string, password: string) => Promise<LoginResult>;
@@ -31,93 +28,114 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function readStoredUser(): AuthUser | null {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredUser(user: AuthUser | null): void {
-  try {
-    if (user) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    else sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* private browsing or storage disabled — the session just will not survive a refresh */
-  }
-}
-
+/**
+ * Owns sign-in, sign-out, and the single `loading` flag for the whole app.
+ *
+ * Cognito authenticates and supplies identity only; `/me` supplies the role. `loading`
+ * stays true until the Cognito session rehydration and, once signed in, `/me` have both
+ * settled — there is no third state in between.
+ *
+ * - `/me` 401: the backend rejects this session — sign out.
+ * - `/me` network error / 5xx: keep the session, surface the error, do not sign out. A
+ *   backend restart should not log everyone out.
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const cognitoMode = isCognitoMode();
-
-  // Dummy mode starts already-settled; Cognito mode waits for the mount effect below.
-  const [user, setUser] = useState<AuthUser | null>(cognitoMode ? null : readStoredUser);
-  const [loading, setLoading] = useState(cognitoMode);
+  const [identity, setIdentity] = useState<AuthUser | null>(null);
+  const [rehydrating, setRehydrating] = useState(true);
 
   useEffect(() => {
-    if (!cognitoMode) return;
     let cancelled = false;
 
     DEV && log.debug("Rehydration starting");
     cognitoAuth.getCurrentSession().then((sessionUser) => {
       if (cancelled) return;
       DEV && log.debug("Rehydration settled:", sessionUser ? "restored session" : "no session");
-      setUser(sessionUser);
-      setLoading(false);
+      setIdentity(sessionUser);
+      setRehydrating(false);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [cognitoMode]);
+  }, []);
 
-  // Always returns a Promise regardless of backend, so callers don't need to know the active mode.
-  const login = useCallback(
-    async (username: string, password: string): Promise<LoginResult> => {
-      if (cognitoMode) {
-        const result = await cognitoAuth.signIn(username, password);
-        if (!result.ok) return result;
-        DEV && log.info("Login transition: signed in as", result.user.username);
-        setUser(result.user);
-        return result;
-      }
+  const meQuery = useCurrentUser(Boolean(identity));
 
-      const match = authenticate(username, password);
-      if (!match) return { ok: false, error: "Unrecognised username or password." };
-      DEV && log.info("Login transition: signed in as", match.username);
-      writeStoredUser(match);
-      setUser(match);
-      return { ok: true, user: match };
-    },
-    [cognitoMode],
-  );
+  const unauthorizedByBackend =
+    meQuery.isError && meQuery.error instanceof ApiError && meQuery.error.isUnauthorized;
+
+  const login = useCallback(async (username: string, password: string): Promise<LoginResult> => {
+    const result = await cognitoAuth.signIn(username, password);
+    if (!result.ok) return result;
+    DEV && log.info("Login transition: signed in as", result.user.username);
+    setIdentity(result.user);
+    return result;
+  }, []);
 
   // Must stay synchronous — top-nav.jsx passes it straight to an onClick handler.
   const logout = useCallback(() => {
     DEV && log.info("Logout transition");
-    if (cognitoMode) {
-      cognitoAuth.signOut();
-      setUser(null);
-      return;
+    cognitoAuth.signOut();
+    setIdentity(null);
+    queryClient.clear();
+  }, []);
+
+  // /me 401 means the backend rejects this Cognito session outright — sign out.
+  useEffect(() => {
+    if (!unauthorizedByBackend) return;
+    DEV && log.info("/me returned 401 - Cognito session rejected by backend, signing out");
+    logout();
+  }, [unauthorizedByBackend, logout]);
+
+  const value = useMemo<AuthContextValue>(() => {
+    // Still rehydrating the Cognito session, or not signed in: no role to resolve yet.
+    if (rehydrating || !identity) {
+      return {
+        user: identity,
+        role: null,
+        isAuthenticated: false,
+        loading: rehydrating,
+        login,
+        logout,
+      };
     }
 
-    writeStoredUser(null);
-    setUser(null);
-  }, [cognitoMode]);
+    // logout() above will flip identity to null on the next render; report signed-out now.
+    if (unauthorizedByBackend) {
+      return { user: null, role: null, isAuthenticated: false, loading: false, login, logout };
+    }
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      role: user?.role ?? null,
-      isAuthenticated: Boolean(user),
-      loading,
-      login,
-      logout,
-    }),
-    [user, loading, login, logout],
-  );
+    // Signed in with Cognito, /me not yet settled: still loading, no third state.
+    if (meQuery.isPending) {
+      return { user: identity, role: null, isAuthenticated: true, loading: true, login, logout };
+    }
+
+    if (meQuery.data) {
+      return {
+        user: identity,
+        role: roleFromBackend(meQuery.data.role),
+        isAuthenticated: true,
+        loading: false,
+        login,
+        logout,
+      };
+    }
+
+    // /me failed with something other than 401 (network error, 5xx): do not sign out, surface
+    // the error, and keep the session without a resolved role.
+    if (meQuery.isError) log.error("/me failed (non-401), keeping session:", meQuery.error);
+    return { user: identity, role: null, isAuthenticated: true, loading: false, login, logout };
+  }, [
+    identity,
+    rehydrating,
+    meQuery.isPending,
+    meQuery.data,
+    meQuery.isError,
+    meQuery.error,
+    unauthorizedByBackend,
+    login,
+    logout,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

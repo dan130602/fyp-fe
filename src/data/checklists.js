@@ -15,11 +15,7 @@ const CHECKLIST_LIBRARY = [
     id: "retail-service-quality",
     title: "Retail service quality",
     text: "7 questions for everyday-banking calls.",
-    items: [
-      "Identity verification completed",
-      "Consent recorded",
-      "Service request confirmed",
-    ],
+    items: ["Identity verification completed", "Consent recorded", "Service request confirmed"],
   },
   {
     id: "cards-and-lending",

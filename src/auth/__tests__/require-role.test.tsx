@@ -22,7 +22,7 @@ function renderGuard(allow = [ROLES.OFFICER]) {
           }
         />
         <Route path="/login" element={<div>login page</div>} />
-        <Route path="/developer" element={<div>developer home</div>} />
+        <Route path="/management" element={<div>management home</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -61,25 +61,20 @@ describe("RequireRole", () => {
 
   it("redirects to the role's home when the role is not allowed", () => {
     mockUseAuth.mockReturnValue({
-      user: {
-        username: "test-developer",
-        name: "Test Developer",
-        initials: "TD",
-        role: ROLES.DEVELOPER,
-      },
-      role: ROLES.DEVELOPER,
+      user: { username: "test-manager", name: "Test Manager", initials: "TM" },
+      role: ROLES.ADMIN,
       isAuthenticated: true,
       loading: false,
       login: vi.fn(),
       logout: vi.fn(),
     });
     renderGuard([ROLES.OFFICER]);
-    expect(screen.getByText("developer home")).toBeInTheDocument();
+    expect(screen.getByText("management home")).toBeInTheDocument();
   });
 
   it("renders children when the role is allowed", () => {
     mockUseAuth.mockReturnValue({
-      user: { username: "test-officer", name: "Test Officer", initials: "TO", role: ROLES.OFFICER },
+      user: { username: "test-officer", name: "Test Officer", initials: "TO" },
       role: ROLES.OFFICER,
       isAuthenticated: true,
       loading: false,
