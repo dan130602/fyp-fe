@@ -8,9 +8,13 @@ export default function ProductionPanel({ live }) {
     <div className="prod">
       <div className="pgrid">
         <div className="card">
-          <div className="cv">{live?.version} · {live?.sha}</div>
+          <div className="cv">
+            {live?.version} · {live?.sha}
+          </div>
           <div className="cl">Deployed since {deployedSince}</div>
-          <div className="cn">hybrid + bge-v2 reranker, k=5. Offline E2E was {live?.e2e}% on golden_v3.</div>
+          <div className="cn">
+            hybrid + bge-v2 reranker, k=5. Offline E2E was {live?.e2e}% on golden_v3.
+          </div>
         </div>
         {cards.map((card) => (
           <div className="card" key={card.id}>
@@ -25,9 +29,8 @@ export default function ProductionPanel({ live }) {
       </div>
       <div className="slot">
         <b>Langfuse dashboard</b>
-        Traces, model costs, token usage, latency and score distributions.
-        Embedded from the self-hosted instance, or opened in a new tab if
-        frame-ancestors is not configured.
+        Traces, model costs, token usage, latency and score distributions. Embedded from the
+        self-hosted instance, or opened in a new tab if frame-ancestors is not configured.
       </div>
     </div>
   );

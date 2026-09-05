@@ -26,5 +26,21 @@ export default function ComplianceOfficer() {
     reports: <Reports/>,
   };
 
-  return <div className="app"><Sidebar page={page} setPage={setPage}/><main><header><span>Compliance review / <b>{navLabel(page)}</b></span><div><Badge tone="pass">● Processing normally</Badge><i className="avatar">{user?.initials ?? "CO"}</i></div></header><div className="page">{pages[page]}</div></main></div>;
+  return (
+    <div className="app">
+      <Sidebar page={page} setPage={setPage} />
+      <main>
+        <header>
+          <span>
+            Compliance review / <b>{navLabel(page)}</b>
+          </span>
+          <div>
+            <Badge tone="pass">● Processing normally</Badge>
+            <i className="avatar">{user?.initials ?? "CO"}</i>
+          </div>
+        </header>
+        <div className="page">{pages[page]}</div>
+      </main>
+    </div>
+  );
 }

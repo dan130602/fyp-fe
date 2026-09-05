@@ -141,3 +141,11 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+.idea/
+
+# Generated knowledge graph output (regenerable via `graphify update .`)
+graphify-out/
+
+# Personal Claude Code config (hardcodes machine-specific paths)
+.claude/
