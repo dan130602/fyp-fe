@@ -1,4 +1,9 @@
 # Lint auto-fixes but never blocks; type errors and test failures do.
+echo "→ husky: formatting staged files"
 npx lint-staged || true
+
+echo "→ husky: typecheck"
 npm run typecheck
+
+echo "→ husky: tests"
 npm run test
