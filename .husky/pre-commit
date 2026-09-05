@@ -1,0 +1,4 @@
+# Lint auto-fixes but never blocks; type errors and test failures do.
+npx lint-staged || true
+npm run typecheck
+npm run test
