@@ -11,8 +11,7 @@ import Management from "./views/management.jsx";
 /** Send "/" and anything unrecognised to wherever the current role belongs. */
 function RoleHome() {
   const { user, loading } = useAuth();
-  // Same rehydration race as RequireRole: don't decide "/login" until the
-  // initial session check has actually settled.
+  // Same rehydration race as RequireRole: don't decide "/login" until the session check settles.
   if (loading) return null;
   return <Navigate to={user ? homeRouteFor(user.role) : "/login"} replace />;
 }

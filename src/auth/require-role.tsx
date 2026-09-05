@@ -6,16 +6,13 @@ import { homeRouteFor, type Role } from "./roles.ts";
 
 const log = createLogger("auth");
 
-// Route guard: wrap a route in <RequireRole allow={[...]}> to bounce anonymous visitors to /login and unauthorized ones to their own home route.
+// Route guard: bounces anonymous visitors to /login, unauthorized ones to their own home route.
 
 export default function RequireRole({ allow, children }: { allow: Role[]; children: ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // Cognito session rehydration is async; until it settles, `user` is falsy
-  // whether or not the visitor is actually signed in. Render nothing rather
-  // than bouncing to /login, or a refresh would flash the login screen before
-  // landing back where it started.
+  // While rehydration settles, render nothing — a refresh would flash /login before landing back.
   if (loading) return null;
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   if (!user.role || !allow.includes(user.role)) {

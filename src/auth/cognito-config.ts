@@ -1,7 +1,8 @@
-// Reads Cognito config from the env; fails loudly at import time in cognito mode when a required var is missing.
+// Reads Cognito config from the env; fails loudly at import time if cognito mode is missing a var.
 import { createLogger } from "../lib/logger.ts";
 
 const log = createLogger("auth");
+const DEV = import.meta.env.DEV;
 
 export interface CognitoConfig {
   region: string | undefined;
@@ -9,20 +10,17 @@ export interface CognitoConfig {
   clientId: string | undefined;
 }
 
-/** Raw Cognito settings, read once from Vite's env. */
 export const cognitoConfig: CognitoConfig = {
   region: import.meta.env.VITE_COGNITO_REGION,
   userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
   clientId: import.meta.env.VITE_COGNITO_CLIENT_ID,
 };
 
-/** Which auth backend to use. Defaults to "dummy" — the safe choice for an
- *  unconfigured checkout, since it never attempts a real Cognito call. */
+/** Auth backend to use; defaults to "dummy", the safe choice for an unconfigured checkout. */
 export const AUTH_MODE: string = import.meta.env.VITE_AUTH_MODE || "dummy";
-import.meta.env.DEV && log.info("Active AUTH_MODE:", AUTH_MODE);
+DEV && log.info("Active AUTH_MODE:", AUTH_MODE);
 
-/** True when the app should authenticate against real Cognito rather than
- *  the hardcoded prototype users. */
+/** True when the app should authenticate against real Cognito rather than dummy users. */
 export function isCognitoMode(): boolean {
   return AUTH_MODE === "cognito";
 }

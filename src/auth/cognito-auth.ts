@@ -1,4 +1,4 @@
-// Real Cognito auth behind the same interface dummy-users.js/auth-context.jsx speak: sessionStorage-backed tokens, role resolved from cognito:groups.
+// Real Cognito auth: sessionStorage-backed tokens, role resolved from cognito:groups.
 import {
   AuthenticationDetails,
   CognitoUser,
@@ -11,9 +11,9 @@ import { cognitoConfig } from "./cognito-config.ts";
 import { type AuthUser, type LoginResult, ROLES, type Role } from "./roles.ts";
 
 const log = createLogger("auth");
+const DEV = import.meta.env.DEV;
 
-/** Claims read off the ID token payload. amazon-cognito-identity-js types
- *  decodePayload() as `{ [id: string]: any }`; this narrows to what we use. */
+/** Claims read off the ID token payload, narrowed from decodePayload()'s `any`. */
 interface IdTokenPayload {
   "cognito:username"?: string;
   "cognito:groups"?: unknown;
@@ -22,15 +22,10 @@ interface IdTokenPayload {
   exp?: number;
 }
 
-/** Priority order for picking a single role out of a multi-group user.
- *  Earlier entries win. Only these three groups are recognised — anything
- *  else on the token (future groups, typos, another team's group) is ignored
- *  rather than accidentally granted. */
+/** Priority order for a multi-group user; earlier wins. Unrecognised groups are ignored. */
 const ROLE_PRIORITY: Role[] = [ROLES.OFFICER, ROLES.MANAGER, ROLES.DEVELOPER];
 
-/** sessionStorage wrapped to the shape amazon-cognito-identity-js expects
- *  (ICognitoStorage: setItem/getItem/removeItem/clear). Passing this instead
- *  of leaving Storage unset is what keeps tokens out of localStorage. */
+/** sessionStorage wrapped as ICognitoStorage, keeping tokens out of localStorage. */
 const sessionBackedStorage: ICognitoStorage = {
   setItem: (key, value) => sessionStorage.setItem(key, value),
   getItem: (key) => sessionStorage.getItem(key),
@@ -44,10 +39,7 @@ const userPool = new CognitoUserPool({
   Storage: sessionBackedStorage,
 });
 
-/** Builds a CognitoUser tied to the same sessionStorage-backed storage as the
- *  pool. Needed at sign-in, where the user is constructed before any session
- *  exists. (Rehydration does not need it: getCurrentUser() reads the pool's
- *  own storage and passes it to the CognitoUser it builds.) */
+/** Builds a CognitoUser tied to the pool's storage; needed at sign-in before any session exists. */
 function makeCognitoUser(username: string): CognitoUser {
   return new CognitoUser({
     Username: username,
@@ -56,9 +48,7 @@ function makeCognitoUser(username: string): CognitoUser {
   });
 }
 
-/** First letter of the first two words, uppercased. A single-word name takes
- *  its own first two letters instead, so "Cher" still yields "CH" rather than
- *  just "C". */
+/** First letter of the first two words, uppercased; a single word takes its own first two. */
 export function initialsFor(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length >= 2) {
@@ -70,9 +60,7 @@ export function initialsFor(name: string): string {
   return "";
 }
 
-/** Turns "test.officer" or "test-officer" from an email local-part into
- *  "Test Officer" — best-effort display name when Cognito has no `name`
- *  claim. */
+/** Turns an email local-part like "test.officer" into "Test Officer" for display. */
 function prettifyLocalPart(localPart: string): string {
   return localPart
     .split(/[._-]+/)
@@ -81,8 +69,7 @@ function prettifyLocalPart(localPart: string): string {
     .join(" ");
 }
 
-/** name claim -> prettified email local-part -> raw username. Never lets
- *  "undefined" reach the UI. */
+/** name claim -> prettified email local-part -> raw username; never lets "undefined" show. */
 export function resolveName(payload: IdTokenPayload): string {
   if (payload.name) return payload.name;
   if (payload.email) {
@@ -92,25 +79,20 @@ export function resolveName(payload: IdTokenPayload): string {
   return payload["cognito:username"] ?? "";
 }
 
-/** Picks one role from the `cognito:groups` array by explicit priority, or
- *  null when the array is absent or holds nothing we recognise. Returning
- *  null (rather than guessing) is deliberate: an unassigned user must fail
- *  login, not land on an arbitrary screen. */
+/** Returns null (never a default) for no recognised group — an unassigned user must fail. */
 export function resolveRole(payload: IdTokenPayload): Role | null {
   const groups = Array.isArray(payload["cognito:groups"]) ? payload["cognito:groups"] : [];
   const role = ROLE_PRIORITY.find((role) => groups.includes(role)) ?? null;
-  import.meta.env.DEV && log.debug("Resolved role", role, "from cognito:groups", groups);
+  DEV && log.debug("Resolved role", role, "from cognito:groups", groups);
   return role;
 }
 
-/** Maps a CognitoUserSession to this app's session shape, reading everything
- *  from the ID token payload (the one signed claim set that includes both
- *  profile attributes and group membership). */
+/** Maps a session to this app's user shape, reading profile and group claims off the ID token. */
 function sessionToUser(session: CognitoUserSession): AuthUser {
   const payload = session.getIdToken().decodePayload() as IdTokenPayload;
   const name = resolveName(payload);
   const expiry = payload.exp ? new Date(payload.exp * 1000).toISOString() : "unknown";
-  import.meta.env.DEV && log.debug("ID token expires at", expiry);
+  DEV && log.debug("ID token expires at", expiry);
   return {
     username: payload["cognito:username"] ?? "",
     name,
@@ -119,13 +101,15 @@ function sessionToUser(session: CognitoUserSession): AuthUser {
   };
 }
 
-/** Maps a Cognito exception to the `{ ok: false, error }` shape the login
- *  form renders. NotAuthorizedException (wrong password) and
- *  UserNotFoundException (no such user) deliberately share one message —
- *  distinguishing them would tell an attacker which usernames exist. */
+function errorCode(err: unknown): string | undefined {
+  return err && typeof err === "object" && "code" in err
+    ? (err as { code?: string }).code
+    : undefined;
+}
+
+/** Wrong-password and no-such-user share one message on purpose, to avoid user enumeration. */
 export function mapAuthError(err: unknown): string {
-  const code =
-    err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : undefined;
+  const code = errorCode(err);
 
   if (code === "NotAuthorizedException" || code === "UserNotFoundException") {
     return "Unrecognised username or password.";
@@ -141,13 +125,8 @@ export function mapAuthError(err: unknown): string {
   return "Something went wrong while signing in. Please try again.";
 }
 
-/**
- * Authenticates against Cognito with USER_SRP_AUTH (the library default —
- * no auth flow is passed). Resolves with the same `{ ok, user }` /
- * `{ ok, error }` shape dummy-users.js's callers already expect.
- */
 export function signIn(username: string, password: string): Promise<LoginResult> {
-  import.meta.env.DEV && log.info("Sign-in attempt for", username);
+  DEV && log.info("Sign-in attempt for", username);
   return new Promise((resolve) => {
     const cognitoUser = makeCognitoUser(username);
     const authDetails = new AuthenticationDetails({
@@ -166,26 +145,18 @@ export function signIn(username: string, password: string): Promise<LoginResult>
           });
           return;
         }
-        import.meta.env.DEV && log.info("Sign-in succeeded for", username, "with role", user.role);
+        DEV && log.info("Sign-in succeeded for", username, "with role", user.role);
         resolve({ ok: true, user });
       },
 
       onFailure: (err: unknown) => {
-        const code =
-          err && typeof err === "object" && "code" in err
-            ? (err as { code?: string }).code
-            : undefined;
-        import.meta.env.DEV && log.info("Sign-in failed for", username, "code:", code);
+        DEV && log.info("Sign-in failed for", username, "code:", errorCode(err));
         resolve({ ok: false, error: mapAuthError(err) });
       },
 
-      // Fires instead of onSuccess/onFailure for admin-created users still in
-      // FORCE_CHANGE_PASSWORD. Without this callback the SDK just waits
-      // forever — no error, no success, login silently hangs. Our three test
-      // users are CONFIRMED so this will not trigger for them, but any future
-      // admin-created user will hit it on first sign-in.
+      // Without this callback, a FORCE_CHANGE_PASSWORD user hangs forever: no error, no success.
       newPasswordRequired: () => {
-        import.meta.env.DEV && log.info("Sign-in blocked for", username, "- new password required");
+        DEV && log.info("Sign-in blocked for", username, "- new password required");
         resolve({
           ok: false,
           error: "This account requires a password reset before first sign-in.",
@@ -195,20 +166,12 @@ export function signIn(username: string, password: string): Promise<LoginResult>
   });
 }
 
-/**
- * Rehydrates the current Cognito session on page load, replacing
- * dummy-users.js's synchronous readStoredUser(). Resolves to `null` — never
- * rejects — when there is no signed-in user or the session is invalid, so
- * callers can treat "no session" and "not logged in" identically.
- *
- * getSession() also transparently refreshes an expired ID token using the
- * refresh token, when one is still valid.
- */
+/** Rehydrates the session on page load; resolves null (never rejects) if none or invalid. */
 export function getCurrentSession(): Promise<AuthUser | null> {
   return new Promise((resolve) => {
     const cognitoUser = userPool.getCurrentUser();
     if (!cognitoUser) {
-      import.meta.env.DEV && log.debug("Rehydrate: no stored Cognito user");
+      DEV && log.debug("Rehydrate: no stored Cognito user");
       resolve(null);
       return;
     }
@@ -217,22 +180,21 @@ export function getCurrentSession(): Promise<AuthUser | null> {
     function onSession(error: null, session: CognitoUserSession): void;
     function onSession(error: Error | null, session: CognitoUserSession | null): void {
       if (error || !session || !session.isValid()) {
-        import.meta.env.DEV && log.debug("Rehydrate: no valid session");
+        DEV && log.debug("Rehydrate: no valid session");
         resolve(null);
         return;
       }
-      import.meta.env.DEV && log.debug("Rehydrate: valid session found");
+      DEV && log.debug("Rehydrate: valid session found");
       resolve(sessionToUser(session));
     }
     cognitoUser.getSession(onSession);
   });
 }
 
-/** Signs the current Cognito user out and clears their session storage. */
 export function signOut(): void {
   const cognitoUser = userPool.getCurrentUser();
   if (cognitoUser) {
-    import.meta.env.DEV && log.info("Signing out", cognitoUser.getUsername());
+    DEV && log.info("Signing out", cognitoUser.getUsername());
     cognitoUser.signOut();
   }
 }

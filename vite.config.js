@@ -1,8 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// @vitejs/plugin-react was already a dependency but had no config to load it,
-// so JSX was going through esbuild's default transform with no fast refresh.
+// Loads @vitejs/plugin-react, which was a dependency but had no config wiring it in.
 export default defineConfig({
   plugins: [react()],
 

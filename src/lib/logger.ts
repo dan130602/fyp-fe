@@ -1,4 +1,4 @@
-// Namespaced console logger. Callers must gate debug/info with `import.meta.env.DEV &&` so Vite can dead-code-strip them from production.
+// Namespaced console logger; gate debug/info with a module-local `DEV &&` for prod stripping.
 export interface Logger {
   debug: (...args: unknown[]) => void;
   info: (...args: unknown[]) => void;

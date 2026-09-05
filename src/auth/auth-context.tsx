@@ -14,6 +14,7 @@ import { authenticate } from "./dummy-users.ts";
 import type { AuthUser, LoginResult } from "./roles.ts";
 
 const log = createLogger("auth");
+const DEV = import.meta.env.DEV;
 
 // TEMPORARY SCAFFOLDING: dummy/Cognito branch below is temporary until Cognito is the only path.
 
@@ -51,8 +52,7 @@ function writeStoredUser(user: AuthUser | null): void {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const cognitoMode = isCognitoMode();
 
-  // Dummy mode has nothing to await, so it can start already-settled.
-  // Cognito mode starts unsettled until the mount effect below resolves.
+  // Dummy mode starts already-settled; Cognito mode waits for the mount effect below.
   const [user, setUser] = useState<AuthUser | null>(cognitoMode ? null : readStoredUser);
   const [loading, setLoading] = useState(cognitoMode);
 
@@ -60,11 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!cognitoMode) return;
     let cancelled = false;
 
-    import.meta.env.DEV && log.debug("Rehydration starting");
+    DEV && log.debug("Rehydration starting");
     cognitoAuth.getCurrentSession().then((sessionUser) => {
       if (cancelled) return;
-      import.meta.env.DEV &&
-        log.debug("Rehydration settled:", sessionUser ? "restored session" : "no session");
+      DEV && log.debug("Rehydration settled:", sessionUser ? "restored session" : "no session");
       setUser(sessionUser);
       setLoading(false);
     });
@@ -74,22 +73,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [cognitoMode]);
 
-  /* Always returns a Promise, regardless of backend, so callers (login.jsx)
-     never need to know which mode is active. Dummy mode's authenticate() is
-     synchronous under the hood, but is wrapped so the signature matches. */
+  // Always returns a Promise regardless of backend, so callers don't need to know the active mode.
   const login = useCallback(
     async (username: string, password: string): Promise<LoginResult> => {
       if (cognitoMode) {
         const result = await cognitoAuth.signIn(username, password);
         if (!result.ok) return result;
-        import.meta.env.DEV && log.info("Login transition: signed in as", result.user.username);
+        DEV && log.info("Login transition: signed in as", result.user.username);
         setUser(result.user);
         return result;
       }
 
       const match = authenticate(username, password);
       if (!match) return { ok: false, error: "Unrecognised username or password." };
-      import.meta.env.DEV && log.info("Login transition: signed in as", match.username);
+      DEV && log.info("Login transition: signed in as", match.username);
       writeStoredUser(match);
       setUser(match);
       return { ok: true, user: match };
@@ -97,11 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [cognitoMode],
   );
 
-  /* Must stay a plain synchronous function — top-nav.jsx passes it straight
-     to an onClick handler. Cognito's signOut() itself is synchronous (it just
-     clears the SDK's session storage), so no async boundary is needed here. */
+  // Must stay synchronous — top-nav.jsx passes it straight to an onClick handler.
   const logout = useCallback(() => {
-    import.meta.env.DEV && log.info("Logout transition");
+    DEV && log.info("Logout transition");
     if (cognitoMode) {
       cognitoAuth.signOut();
       setUser(null);

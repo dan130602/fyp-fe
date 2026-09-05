@@ -1,4 +1,4 @@
-// Prototype-only hardcoded users: officer/officer, dev/dev, manager/manager. Plain-text comparison, no backend.
+// Prototype-only hardcoded users (officer/officer, dev/dev, manager/manager), no backend.
 import { type AuthUser, ROLES } from "./roles.ts";
 
 interface DummyUser extends AuthUser {
@@ -32,10 +32,7 @@ const DUMMY_USERS: DummyUser[] = [
 /** Strip the password before anything reaches component state or storage. */
 const toSession = ({ password, ...user }: DummyUser): AuthUser => user;
 
-/**
- * Plain string comparison against the hardcoded list.
- * Returns the session user, or null when the credentials do not match.
- */
+/** Plain string comparison against the hardcoded list; null when credentials don't match. */
 export function authenticate(username: string, password: string): AuthUser | null {
   const match = DUMMY_USERS.find(
     (u) => u.username === username.trim().toLowerCase() && u.password === password,

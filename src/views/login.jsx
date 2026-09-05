@@ -49,8 +49,7 @@ export default function Login() {
         {error && <p className="login-error">{error}</p>}
 
         <label className="login-field">
-          {/* The pool has email as an alias attribute, so either value signs
-              in — the label says so to avoid implying email-only sign-in. */}
+          {/* Email is an alias attribute on the pool, so either value signs in. */}
           <span>Username or email</span>
           <input
             value={username}

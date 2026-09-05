@@ -1,4 +1,4 @@
-// The three roles, their labels, and where each lands after login — enforces SoD via require-role.jsx.
+// The three roles and their home routes; require-role.jsx enforces SoD using this.
 
 export const ROLES = {
   OFFICER: "compliance-officer",
@@ -23,7 +23,6 @@ export const ROLE_LABELS: Record<Role, string> = {
   [ROLES.MANAGER]: "Compliance manager",
 };
 
-/** Where a role goes when it logs in, or when it reaches a route it may not see. */
 export const ROLE_HOME: Record<Role, string> = {
   [ROLES.OFFICER]: "/review",
   [ROLES.DEVELOPER]: "/developer",
