@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth/auth-context.jsx";
 import RequireRole from "./auth/require-role.jsx";
-import { ROLES, homeRouteFor } from "./auth/roles.js";
+import { homeRouteFor, ROLES } from "./auth/roles.js";
 import AppShell from "./components/shared/app-shell.jsx";
 import ComplianceOfficer from "./views/compliance-officer.jsx";
 import InternalDeveloper from "./views/internal-developer.jsx";
@@ -10,7 +10,9 @@ import Management from "./views/management.jsx";
 
 /** Send "/" and anything unrecognised to wherever the current role belongs. */
 function RoleHome() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  // Same rehydration race as RequireRole: don't decide "/login" until the session check settles.
+  if (loading) return null;
   return <Navigate to={user ? homeRouteFor(user.role) : "/login"} replace />;
 }
 
