@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../auth/cognito-auth.ts", () => ({ getIdToken: vi.fn() }));
 
 const { getIdToken } = await import("../../auth/cognito-auth.ts");
-const { apiGet, ApiError } = await import("../api-client.ts");
+const { apiGet, apiPost, ApiError } = await import("../api-client.ts");
 
 const mockGetIdToken = vi.mocked(getIdToken);
 
@@ -120,6 +120,39 @@ describe("apiGet", () => {
     await expect(apiGet("/api/users/me")).rejects.toMatchObject({
       status: 500,
       message: "Request failed with status 500",
+    });
+  });
+});
+
+describe("apiPost", () => {
+  it("JSON-encodes the body, sets Content-Type, and attaches the bearer token", async () => {
+    mockGetIdToken.mockResolvedValue("the-id-token");
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ok: true }));
+
+    await apiPost("/api/uploads/presigned-urls", { files: [{ fileName: "a.mp3" }] });
+
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toContain("/api/uploads/presigned-urls");
+    expect(init?.method).toBe("POST");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer the-id-token");
+    expect(headers.get("Content-Type")).toBe("application/json");
+    expect(init?.body).toBe(JSON.stringify({ files: [{ fileName: "a.mp3" }] }));
+  });
+
+  it("throws the same ApiError shape as apiGet on a non-2xx response", async () => {
+    mockGetIdToken.mockResolvedValue("token");
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(400, {
+        status: 400,
+        error: "Bad Request",
+        message: "File size must be greater than zero for file 'a.mp3'",
+      }),
+    );
+
+    await expect(apiPost("/api/uploads/presigned-urls", { files: [] })).rejects.toMatchObject({
+      status: 400,
+      message: "File size must be greater than zero for file 'a.mp3'",
     });
   });
 });

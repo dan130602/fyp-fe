@@ -1,4 +1,3 @@
-// Real Cognito auth: sessionStorage-backed tokens. Identity only; /me supplies the role.
 import {
   AuthenticationDetails,
   CognitoUser,

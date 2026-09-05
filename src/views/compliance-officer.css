@@ -75,6 +75,7 @@
 .app .upload-zone b{display:block;font-size:12px}
 .app .upload-zone small{display:block;color:var(--muted);font-size:10px}
 .app .upload-zone .uploaded{color:var(--green);font-weight:800}
+.app .upload-zone-error{color:var(--red);font-weight:700}
 .app .upload-note{margin:0 0 20px;color:var(--green);font-size:11px}
 .app .call-head{display:flex;justify-content:space-between;gap:12px}
 .app .call-head h2{margin:8px 0 3px;font-size:18px}

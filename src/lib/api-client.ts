@@ -74,3 +74,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export function apiGet<T>(path: string): Promise<T> {
   return request<T>(path, { method: "GET" });
 }
+
+export function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  return request<T>(path, { method: "POST", headers, body: JSON.stringify(body) });
+}

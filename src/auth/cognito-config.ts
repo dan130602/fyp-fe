@@ -1,4 +1,3 @@
-// Reads Cognito config from the env; fails loudly at import time if a var is missing.
 import { createLogger } from "../lib/logger.ts";
 
 const log = createLogger("auth");
