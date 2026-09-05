@@ -14,7 +14,5 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: "./src/test/setup.ts",
-    // pin so tests don't depend on .env.local vs CI
-    env: { VITE_AUTH_MODE: "dummy" },
   },
 });
