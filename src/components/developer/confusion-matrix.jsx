@@ -12,7 +12,9 @@ export default function ConfusionMatrix({ cm }) {
         <thead>
           <tr>
             <th></th>
-            {COL_LABELS.map((label) => <th key={label}>{label}</th>)}
+            {COL_LABELS.map((label) => (
+              <th key={label}>{label}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -20,16 +22,21 @@ export default function ConfusionMatrix({ cm }) {
             <tr key={label}>
               <th>{label}</th>
               {cm[r].map((value, c) => (
-                <td key={c} data-diag={r === c} data-bad={r === 1 && c === 0}
-                    title="Open these items in Langfuse">{value}</td>
+                <td
+                  key={c}
+                  data-diag={r === c}
+                  data-bad={r === 1 && c === 0}
+                  title="Open these items in Langfuse"
+                >
+                  {value}
+                </td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
       <div className="hint">
-        Rows = gold, columns = predicted. Red cell is false-pass: a real breach
-        called compliant.
+        Rows = gold, columns = predicted. Red cell is false-pass: a real breach called compliant.
       </div>
     </>
   );

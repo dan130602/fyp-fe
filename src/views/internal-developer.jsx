@@ -41,20 +41,33 @@ export default function InternalDeveloper() {
           <div>
             <h1>Technical view</h1>
             <p className="sub">
-              Experiment history and production health for the compliance verdict pipeline.
-              Every metric is a delta against the live version. Developer role only.
+              Experiment history and production health for the compliance verdict pipeline. Every
+              metric is a delta against the live version. Developer role only.
             </p>
           </div>
           <div className="meta">
-            live <b>{live?.version} · {live?.sha}</b><br />
-            dataset <b>{dataset.name}</b> · {dataset.items} items<br />
+            live{" "}
+            <b>
+              {live?.version} · {live?.sha}
+            </b>
+            <br />
+            dataset <b>{dataset.name}</b> · {dataset.items} items
+            <br />
             {dataset.shape}
           </div>
         </div>
 
         <div className="tabs">
-          <button className="tb" data-on={tab === "ablations"} onClick={() => setTab("ablations")}>Ablations</button>
-          <button className="tb" data-on={tab === "production"} onClick={() => setTab("production")}>Production</button>
+          <button className="tb" data-on={tab === "ablations"} onClick={() => setTab("ablations")}>
+            Ablations
+          </button>
+          <button
+            className="tb"
+            data-on={tab === "production"}
+            onClick={() => setTab("production")}
+          >
+            Production
+          </button>
         </div>
 
         {tab === "ablations" && (
@@ -62,10 +75,18 @@ export default function InternalDeveloper() {
             <div className="bar">
               <span className="lab">Status</span>
               <select className="sel" value={filter} onChange={(e) => setFilter(e.target.value)}>
-                {STATUS_FILTERS.map((s) => <option key={s}>{s}</option>)}
+                {STATUS_FILTERS.map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
               </select>
               <div className="sp" />
-              <span className="note">deltas vs <b>{live?.version} {live?.sha}</b> · rejected runs retained</span>
+              <span className="note">
+                deltas vs{" "}
+                <b>
+                  {live?.version} {live?.sha}
+                </b>{" "}
+                · rejected runs retained
+              </span>
             </div>
 
             <AblationTable
@@ -82,10 +103,19 @@ export default function InternalDeveloper() {
             />
 
             <div className="foot">
-              <span><span className="dot" style={{ background: "var(--gain)" }} /> better than live</span>
-              <span><span className="dot" style={{ background: "var(--loss)" }} /> worse than live</span>
-              <span><span className="dot" style={{ background: "var(--amber)" }} /> trade-off: better on some, worse on others</span>
-              <span><Info size={11} /> Rejected runs stay in the ledger.</span>
+              <span>
+                <span className="dot" style={{ background: "var(--gain)" }} /> better than live
+              </span>
+              <span>
+                <span className="dot" style={{ background: "var(--loss)" }} /> worse than live
+              </span>
+              <span>
+                <span className="dot" style={{ background: "var(--amber)" }} /> trade-off: better on
+                some, worse on others
+              </span>
+              <span>
+                <Info size={11} /> Rejected runs stay in the ledger.
+              </span>
             </div>
           </>
         )}

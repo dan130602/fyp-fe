@@ -27,7 +27,7 @@ export function runShape(run, live, groups) {
       const d = metricDelta(run, live, metric);
       if (d && d.good === true) up++;
       if (d && d.good === false) down++;
-    })
+    }),
   );
   if (up > 0 && down === 0) return { t: "all better", c: "var(--gain)" };
   if (down > 0 && up === 0) return { t: "all worse", c: "var(--loss)" };

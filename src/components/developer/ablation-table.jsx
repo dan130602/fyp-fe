@@ -37,18 +37,27 @@ export default function AblationTable({
             <th colSpan={2}>Run</th>
             {groups.map((group) => (
               <th key={group.id} colSpan={group.metrics.length} data-b="true">
-                {group.label}<span className="gnote">{group.note}</span>
+                {group.label}
+                <span className="gnote">{group.note}</span>
               </th>
             ))}
-            <th colSpan={2} data-b="true">Decision</th>
+            <th colSpan={2} data-b="true">
+              Decision
+            </th>
           </tr>
           <tr className="hr">
             <th className="l">ID</th>
             <th className="l">Experiment / config</th>
-            {groups.map((group) => group.metrics.map((metric, i) => (
-              <th key={metric.key} data-b={i === 0 ? "true" : "false"}>{metric.label}</th>
-            )))}
-            <th className="l" data-b="true">Status</th>
+            {groups.map((group) =>
+              group.metrics.map((metric, i) => (
+                <th key={metric.key} data-b={i === 0 ? "true" : "false"}>
+                  {metric.label}
+                </th>
+              )),
+            )}
+            <th className="l" data-b="true">
+              Status
+            </th>
             <th className="l">Commit</th>
           </tr>
         </thead>
@@ -60,47 +69,70 @@ export default function AblationTable({
             const shape = runShape(run, live, groups);
             return (
               <Fragment key={run.id}>
-                <tr className="row" data-cur={run.current}
-                    onClick={() => onToggle(open ? null : run.id)}>
+                <tr
+                  className="row"
+                  data-cur={run.current}
+                  onClick={() => onToggle(open ? null : run.id)}
+                >
                   <td>
-                    <div className="rid" data-o={open}><ChevronRight size={12} />{run.id}</div>
+                    <div className="rid" data-o={open}>
+                      <ChevronRight size={12} />
+                      {run.id}
+                    </div>
                     <div className="dt">{run.date}</div>
                   </td>
                   <td>
                     <div className="nm">
                       {run.name}
-                      {shape && <span className="shp" style={{ color: shape.c }}>{shape.t}</span>}
+                      {shape && (
+                        <span className="shp" style={{ color: shape.c }}>
+                          {shape.t}
+                        </span>
+                      )}
                     </div>
                     <div className="chips">
                       {knobs.map((knob) => (
-                        <span key={knob} className="chip"
-                          data-d={prev ? prev.config[knob] !== run.config[knob] : false}>
+                        <span
+                          key={knob}
+                          className="chip"
+                          data-d={prev ? prev.config[knob] !== run.config[knob] : false}
+                        >
                           {knob}={run.config[knob]}
                         </span>
                       ))}
                     </div>
                   </td>
-                  {groups.map((group) => group.metrics.map((metric, i) => {
-                    const d = metricDelta(run, live, metric);
-                    return (
-                      <td key={metric.key} className="num" data-b={i === 0 ? "true" : "false"}>
-                        {formatMetricValue(run[metric.key], metric.fmt)}
-                        {run.current && <div className="lv">LIVE</div>}
-                        {d && (
-                          <div className="dl" data-g={String(d.good)}>
-                            <span className="sk" style={{
-                              width: `${deltaBarWidth(d.d, metric.fmt)}px`,
-                              background: deltaColor(d.good),
-                            }} />
-                            {formatDelta(d.d, metric.fmt)}
-                          </div>
-                        )}
-                      </td>
-                    );
-                  }))}
-                  <td data-b="true"><span className={`bdg ${badge.cls}`}>{badge.text}</span></td>
+                  {groups.map((group) =>
+                    group.metrics.map((metric, i) => {
+                      const d = metricDelta(run, live, metric);
+                      return (
+                        <td key={metric.key} className="num" data-b={i === 0 ? "true" : "false"}>
+                          {formatMetricValue(run[metric.key], metric.fmt)}
+                          {run.current && <div className="lv">LIVE</div>}
+                          {d && (
+                            <div className="dl" data-g={String(d.good)}>
+                              <span
+                                className="sk"
+                                style={{
+                                  width: `${deltaBarWidth(d.d, metric.fmt)}px`,
+                                  background: deltaColor(d.good),
+                                }}
+                              />
+                              {formatDelta(d.d, metric.fmt)}
+                            </div>
+                          )}
+                        </td>
+                      );
+                    }),
+                  )}
+                  <td data-b="true">
+                    <span className={`bdg ${badge.cls}`}>{badge.text}</span>
+                  </td>
                   <td>
-                    <div className="sha"><GitCommit size={11} />{run.sha}</div>
+                    <div className="sha">
+                      <GitCommit size={11} />
+                      {run.sha}
+                    </div>
                     <div className="msg">{run.msg}</div>
                   </td>
                 </tr>
