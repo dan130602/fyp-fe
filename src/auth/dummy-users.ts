@@ -1,17 +1,11 @@
-/* ---------------------------------------------------------------------------
-   DEMO CREDENTIALS — type these on the login screen:
+// Prototype-only hardcoded users: officer/officer, dev/dev, manager/manager. Plain-text comparison, no backend.
+import { type AuthUser, ROLES } from "./roles.ts";
 
-     officer / officer     Compliance officer   → /review
-     dev     / dev         Internal developer   → /developer
-     manager / manager     Compliance manager   → /management
+interface DummyUser extends AuthUser {
+  password: string;
+}
 
-   Prototype only. Plain-text comparison, no backend, no hashing, no token.
-   Replace authenticate() with a real call when there is something to call.
---------------------------------------------------------------------------- */
-
-import { ROLES } from "./roles.js";
-
-const DUMMY_USERS = [
+const DUMMY_USERS: DummyUser[] = [
   {
     username: "officer",
     password: "officer",
@@ -36,15 +30,15 @@ const DUMMY_USERS = [
 ];
 
 /** Strip the password before anything reaches component state or storage. */
-const toSession = ({ password, ...user }) => user;
+const toSession = ({ password, ...user }: DummyUser): AuthUser => user;
 
 /**
  * Plain string comparison against the hardcoded list.
  * Returns the session user, or null when the credentials do not match.
  */
-export function authenticate(username, password) {
+export function authenticate(username: string, password: string): AuthUser | null {
   const match = DUMMY_USERS.find(
-    (u) => u.username === username.trim().toLowerCase() && u.password === password
+    (u) => u.username === username.trim().toLowerCase() && u.password === password,
   );
   return match ? toSession(match) : null;
 }
