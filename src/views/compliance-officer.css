@@ -76,15 +76,57 @@
 .app .upload-zone small{display:block;color:var(--muted);font-size:10px}
 .app .upload-zone .uploaded{color:var(--green);font-weight:800}
 .app .upload-note{margin:0 0 20px;color:var(--green);font-size:11px}
+/* Review queue: one row per analysed call. */
+.app .call-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;width:100%;padding:15px 19px;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;text-align:left}
+.app .call-row:first-child{border-top:0}
+.app .call-row:hover{background:#f7faff}
+.app .call-main{min-width:0}
+.app .call-main b{display:block;font-size:14px;color:var(--ink)}
+.app .call-main small{display:block;margin-top:2px;color:var(--muted);font-size:10px}
+.app .call-main em{display:block;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:11px;font-style:normal}
+.app .call-counts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.app .back{margin-bottom:9px;padding:3px 8px;border-radius:6px;background:transparent;color:var(--muted);font-size:11px}
+.app .back:hover{background:var(--blue-soft);color:#4869a6}
 .app .call-head{display:flex;justify-content:space-between;gap:12px}
 .app .call-head h2{margin:8px 0 3px;font-size:18px}
 .app .call-head p{font-size:11px}
-.app .audio{display:flex;align-items:center;gap:11px;margin:17px 0;padding:12px;border-radius:8px;background:#f5f8fc}
-.app .play{width:29px;height:29px;padding:0;border:0;border-radius:50%;background:var(--blue);color:#fff}
-.app .audio span{flex:1;overflow:hidden;color:#96abd0;letter-spacing:-2px;font-size:19px;white-space:nowrap}
-.app .audio small{color:var(--muted)}
+/* Call recording. `.off` is the state when no audio came back with the analysis
+   or the file will not load — visibly present, visibly inert. */
+.app .player{display:flex;align-items:center;gap:12px;margin:17px 0;padding:12px;border-radius:8px;background:#f5f8fc}
+.app .player.off{opacity:.6}
+.app .play{width:29px;height:29px;padding:0;border:0;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;line-height:1}
+.app .play:disabled{background:#b9c8dc;cursor:not-allowed}
+.app .track{position:relative;flex:1;height:9px;border-radius:99px;background:#dfe7f2}
+.app .track i{position:absolute;top:0;left:0;height:100%;border-radius:inherit;background:var(--blue);pointer-events:none}
+.app .track input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.app .track input:disabled{cursor:not-allowed}
+.app .track input:focus-visible+i{box-shadow:0 0 0 2px var(--blue-soft),0 0 0 4px var(--blue)}
+.app .player small{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.app .player .note{color:var(--muted);font-size:11px;font-style:italic}
 .app .evidence{padding:12px;border-left:3px solid #aec8ff;border-radius:0 7px 7px 0;background:#f7f9fc;color:#4c6076;font-size:12px;line-height:1.6}
 .app .evidence mark{background:#fff0c7}
+/* Transcript with the AI's cited passages highlighted in place. Spans overlap in
+   the payload, so segments — not spans — are what get rendered and lit up. */
+.app .transcript{white-space:pre-wrap;line-height:1.9}
+.app .span{padding:2px 1px;border-radius:4px;background:transparent;color:inherit;cursor:pointer;transition:background .12s,color .12s;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.app .span.compliant{background:var(--green-soft);box-shadow:inset 0 -2px 0 var(--green)}
+.app .span.violation{background:var(--red-soft);box-shadow:inset 0 -2px 0 var(--red)}
+.app .span.unclear{background:var(--amber-soft);box-shadow:inset 0 -2px 0 var(--amber)}
+.app .span.compliant.on{background:var(--green);color:#fff}
+.app .span.violation.on{background:var(--red);color:#fff}
+.app .span.unclear.on{background:var(--amber);color:#fff}
+.app .span:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.app .span.speaking{outline:2px solid var(--blue);outline-offset:1px}
+.app .finding{transition:opacity .12s}
+.app .finding.dim{opacity:.45}
+.app .span-chip{padding:3px 8px;border-radius:999px;font-size:10px;font-weight:800}
+.app .span-chip.compliant{border-color:var(--green);background:var(--green-soft);color:var(--green)}
+.app .span-chip.violation{border-color:var(--red);background:var(--red-soft);color:var(--red)}
+.app .span-chip.unclear{border-color:var(--amber);background:var(--amber-soft);color:var(--amber)}
+.app .retrieved{margin-top:10px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fafcfe}
+.app .retrieved div{display:flex;justify-content:space-between;gap:10px;font-size:11px}
+.app .retrieved span{color:var(--muted);font-variant-numeric:tabular-nums}
+.app .retrieved small{margin-top:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:var(--muted);font-size:10px;line-height:1.5}
 .app .rule-heading{margin:17px 0 13px;padding-top:16px;border-top:1px solid var(--line)}
 .app .rule-heading p{margin:4px 0 0;color:var(--muted);font-size:11px}
 .app .result{grid-template-columns:27px 1fr auto;align-items:center;padding:11px 0;cursor:pointer}
@@ -121,5 +163,7 @@
   .app .metrics,.app .info-grid{grid-template-columns:1fr}
   .app .upload-zone{grid-template-columns:35px 1fr}
   .app .upload-zone button{grid-column:2}
+  .app .call-row{grid-template-columns:1fr;gap:8px}
+  .app .call-counts{justify-content:flex-start}
   .app .progress-row{grid-template-columns:85px 1fr 56px}
 }

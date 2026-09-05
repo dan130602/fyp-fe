@@ -3,7 +3,7 @@ import { useAuth } from "../auth/auth-context.jsx";
 import ChecklistLibrary from "../components/compliance/checklist-library.jsx";
 import Dashboard from "../components/compliance/dashboard.jsx";
 import Reports from "../components/compliance/reports.jsx";
-import ReviewWorkspace from "../components/compliance/review-workspace.jsx";
+import ReviewQueue from "../components/compliance/review-queue.jsx";
 import Sidebar, { navLabel } from "../components/compliance/sidebar.jsx";
 import Badge from "../components/shared/badge.jsx";
 import "./compliance-officer.css";
@@ -21,7 +21,7 @@ export default function ComplianceOfficer() {
   const [page, setPage] = useState("dashboard");
   const pages = {
     dashboard: <Dashboard setPage={setPage}/>,
-    reviews: <ReviewWorkspace/>,
+    reviews: <ReviewQueue/>,
     checklists: <ChecklistLibrary/>,
     reports: <Reports/>,
   };

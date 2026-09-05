@@ -1,9 +1,17 @@
 /* ---------------------------------------------------------------------------
-   Dummy calls, transcripts, and checklist results for the compliance officer.
+   Data for the compliance officer view. The dashboard numbers are still dummy;
+   the review queue reads the captured AI service responses in ./analyses, which
+   are already in the shape the API returns.
 
    Nothing here is exported directly. Views read this module through the hooks
    at the bottom, so swapping in a real API later is a change to this file only.
 --------------------------------------------------------------------------- */
+
+/* Every analysis in ./analyses is a call in the review queue. Dropping another
+   captured response into that folder adds it to the list — no code change. */
+const ANALYSES = Object.entries(import.meta.glob("./analyses/*.json", { eager: true, import: "default" }))
+  .map(([path, analysis]) => ({ id: path.replace(/^.*\/|\.json$/g, ""), analysis }))
+  .sort((a, b) => a.id.localeCompare(b.id));
 
 const HERO_SUMMARY = {
   completionRate: "78%",
@@ -34,62 +42,6 @@ const PRIORITY_QUEUE = [
   { id: "CC-2469", text: "Potentially unsuitable product explanation", tone: "risk" },
 ];
 
-const CURRENT_REVIEW = {
-  id: "CC-2481",
-  title: "CC-2481 · Risk disclosure review",
-  context: "Wealth advisory · 09:47 today · Investment suitability v3.2",
-  riskLabel: "High risk",
-  riskTone: "risk",
-  due: "Due in 1h 42m",
-  duration: "04:38",
-  waveform: "▁▃▅▂▆▃▂▅▆▃▁▅▂▆▃▅▂▁▅▆▃▂▅▆▃▁▅▂▆",
-  transcript: [
-    {
-      time: "02:18",
-      speaker: "Advisor",
-      text: "I have explained that the investment value can fluctuate and you may not recover the amount invested.",
-      highlight: false,
-    },
-    {
-      time: "02:31",
-      speaker: "Customer",
-      text: "Could you repeat what I might lose?",
-      highlight: true,
-    },
-  ],
-  citations: [
-    { time: "02:18", quote: "“I have explained that the investment value can fluctuate…”" },
-    { time: "02:31", quote: "“Could you repeat what I might lose?”" },
-  ],
-  jumpLabel: "Jump to 02:18",
-  checklist: [
-    {
-      title: "Risk disclosure was understood",
-      outcome: "Fail",
-      detail: "Customer acknowledgement not found",
-      tone: "risk",
-    },
-    {
-      title: "Suitability assessment completed",
-      outcome: "Pass",
-      detail: "Two supporting evidence segments",
-      tone: "good",
-    },
-    {
-      title: "Product fees were explained",
-      outcome: "Unclear",
-      detail: "Evidence confidence is low",
-      tone: "watch",
-    },
-    {
-      title: "Customer consent recorded",
-      outcome: "Pass",
-      detail: "Explicit confirmation at 03:44",
-      tone: "good",
-    },
-  ],
-};
-
 /** Headline numbers and progress bars for the officer dashboard. */
 export function useDashboardSummary() {
   return { hero: HERO_SUMMARY, metrics: DASHBOARD_METRICS, progress: REVIEW_PROGRESS };
@@ -100,9 +52,52 @@ export function useReviewQueue() {
   return PRIORITY_QUEUE;
 }
 
-/** The call currently open in the review workspace, with its AI checklist. */
-export function useCurrentReview() {
-  return CURRENT_REVIEW;
+/** Verdicts that decide how urgent a call looks in the list. */
+function riskOf(summary) {
+  if (summary.fail > 0) return { label: "High risk", tone: "risk" };
+  if (summary.unclear > 0) return { label: "Needs review", tone: "watch" };
+  return { label: "Clear", tone: "good" };
+}
+
+/** A readable name for a call the pipeline did not name itself. */
+function titleOf(id, report) {
+  return report.title ?? report.call_id ?? id.replace(/-/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+}
+
+/**
+ * One row per analysed call, for the review queue list. Everything shown is
+ * derived from the payload itself, since the pipeline leaves `call_id`, `title`,
+ * `business_area`, and `risk_level` null on the pasted-transcript path.
+ */
+export function useAnalysisList() {
+  return ANALYSES.map(({ id, analysis }) => {
+    const summary = analysis.report.summary;
+    return {
+      id,
+      title: titleOf(id, analysis.report),
+      context: analysis.report.business_area ?? `${summary.total} checklist questions`,
+      preview: analysis.transcript.slice(0, 140),
+      risk: riskOf(summary),
+      summary,
+      hasAudio: Boolean(analysis.report.audio_url),
+    };
+  });
+}
+
+/**
+ * One call's analysis, in the exact shape the AI service returns. `findings` and
+ * `spans` are read from the top level rather than from `report`, which repeats
+ * them; `report` is the place to look for call metadata and the summary counts.
+ *
+ * The recording is expected at `report.audio_url` — a field the pipeline does not
+ * emit yet, so today it is absent and the player renders disabled. Add it to the
+ * output node and the player picks it up with no frontend change.
+ */
+export function useAnalysis(id) {
+  const entry = ANALYSES.find((a) => a.id === id) ?? ANALYSES[0];
+  if (!entry) return null;
+  const { transcript, chunks, checklist, findings, spans, report } = entry.analysis;
+  return { id: entry.id, title: titleOf(entry.id, report), transcript, chunks, checklist, findings, spans, report, summary: report.summary };
 }
 
 /** Badge count on the sidebar's review-queue entry. */
