@@ -1,6 +1,6 @@
 import { useState } from "react";
-import ReviewList from "./review-list.jsx";
-import ReviewWorkspace from "./review-workspace.jsx";
+import ReviewList from "./review-list.tsx";
+import ReviewWorkspace from "./review-workspace.tsx";
 import UploadZone from "./upload-zone.jsx";
 
 /**
@@ -9,7 +9,7 @@ import UploadZone from "./upload-zone.jsx";
  * discards the open call's transient review state rather than preserving it.
  */
 export default function ReviewQueue() {
-  const [callId, setCallId] = useState(null);
+  const [callId, setCallId] = useState<string | null>(null);
   const [uploaded, setUploaded] = useState(false);
 
   if (callId) return <ReviewWorkspace callId={callId} onBack={() => setCallId(null)}/>;
