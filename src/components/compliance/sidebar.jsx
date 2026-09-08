@@ -1,4 +1,4 @@
-import { useOutstandingItemCount } from "../../data/calls.js";
+import { useOutstandingItemCount } from "../../data/calls.ts";
 
 /* Navigation structure, not domain data — it describes the officer view's own
    pages, so it stays here rather than in src/data/. */

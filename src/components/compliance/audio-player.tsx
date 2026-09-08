@@ -1,5 +1,6 @@
+import type { RefObject } from "react";
 import { useEffect, useState } from "react";
-import { formatClock } from "../../lib/audio.js";
+import { formatClock } from "../../lib/audio.ts";
 
 /**
  * The call recording, played against the transcript below it.
@@ -10,7 +11,14 @@ import { formatClock } from "../../lib/audio.js";
  * renders disabled rather than disappearing, so the officer can tell the
  * difference between "no audio for this call" and a broken screen.
  */
-export default function AudioPlayer({ src, audioRef, onTime, onDuration }) {
+export interface AudioPlayerProps {
+  src: string | null;
+  audioRef: RefObject<HTMLAudioElement | null>;
+  onTime?: (time: number) => void;
+  onDuration?: (duration: number) => void;
+}
+
+export default function AudioPlayer({ src, audioRef, onTime, onDuration }: AudioPlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(NaN);
@@ -25,7 +33,7 @@ export default function AudioPlayer({ src, audioRef, onTime, onDuration }) {
     setFailed(false);
   }, [src]);
 
-  const seek = (seconds) => {
+  const seek = (seconds: number) => {
     const audio = audioRef.current;
     if (!audio || !Number.isFinite(duration)) return;
     audio.currentTime = Math.min(Math.max(seconds, 0), duration);

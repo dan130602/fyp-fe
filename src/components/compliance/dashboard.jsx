@@ -1,4 +1,4 @@
-import { useDashboardSummary, useReviewQueue } from "../../data/calls.js";
+import { useDashboardSummary, useReviewQueue } from "../../data/calls.ts";
 import Badge from "../shared/badge.jsx";
 import Button from "../shared/button.jsx";
 import ProgressRow from "./progress-row.jsx";
