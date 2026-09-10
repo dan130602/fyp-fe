@@ -1,11 +1,16 @@
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import { useDashboardSummary, useReviewQueue } from "../../data/calls.ts";
-import Badge from "../shared/badge.jsx";
-import Button from "../shared/button.jsx";
 import ProgressRow from "./progress-row.jsx";
-import QueueItem from "./queue-item.jsx";
+import QueueItem from "./queue-item.tsx";
+import type { PageId } from "./sidebar.tsx";
+
+interface DashboardProps {
+  setPage: (page: PageId) => void;
+}
 
 /** Landing page for the compliance officer: today's numbers and what to look at first. */
-export default function Dashboard({ setPage }) {
+export default function Dashboard({ setPage }: DashboardProps) {
   const { hero, metrics, progress } = useDashboardSummary();
   const queue = useReviewQueue();
 
@@ -20,10 +25,8 @@ export default function Dashboard({ setPage }) {
           </p>
         </div>
         <div className="actions">
-          <Button>Export management report</Button>
-          <Button variant="primary" onClick={() => setPage("reviews")}>
-            Open review queue
-          </Button>
+          <Button variant="outline">Export management report</Button>
+          <Button onClick={() => setPage("reviews")}>Open review queue</Button>
         </div>
       </section>
       <section className="hero card">
@@ -35,16 +38,16 @@ export default function Dashboard({ setPage }) {
             evidence, failed checklist items, and calls nearing their review deadline.
           </p>
           <div className="actions">
-            <Button variant="primary" onClick={() => setPage("reviews")}>
-              Review priority calls
+            <Button onClick={() => setPage("reviews")}>Review priority calls</Button>
+            <Button variant="outline" onClick={() => setPage("reports")}>
+              See performance results
             </Button>
-            <Button onClick={() => setPage("reports")}>See performance results</Button>
           </div>
         </div>
         <div className="hero-summary">
           <small>Today’s completion rate</small>
           <strong>{hero.completionRate}</strong>
-          <Badge tone="watch">In progress</Badge>
+          <Badge variant="watch">In progress</Badge>
           <hr />
           <span>
             Calls processed <b>{hero.callsProcessed}</b>
@@ -76,7 +79,7 @@ export default function Dashboard({ setPage }) {
               <h2>Review progress by business area</h2>
               <p>Call-level checklist completion for the current review window</p>
             </div>
-            <Badge tone="info">Today</Badge>
+            <Badge variant="info">Today</Badge>
           </div>
           {progress.map((row) => (
             <ProgressRow key={row.label} {...row} />
@@ -88,7 +91,9 @@ export default function Dashboard({ setPage }) {
               <h2>Priority review queue</h2>
               <p>AI flagged calls with material compliance risk</p>
             </div>
-            <Button onClick={() => setPage("reviews")}>View all</Button>
+            <Button size="sm" variant="secondary" onClick={() => setPage("reviews")}>
+              View all
+            </Button>
           </div>
           {queue.map((item) => (
             <QueueItem key={item.id} {...item} onClick={() => setPage("reviews")} />

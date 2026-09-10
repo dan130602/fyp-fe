@@ -1,19 +1,30 @@
-import { useRef, useState } from "react";
+import { type DragEvent, useId, useRef, useState } from "react";
+import { Button } from "@/components/ui/button.tsx";
 import { validateFile } from "../../uploads/upload-validation.ts";
+import type { UploadResult } from "../../uploads/use-upload-file.ts";
 import { useUploadFile } from "../../uploads/use-upload-file.ts";
 
+export interface UploadZoneResult extends UploadResult {
+  file: File;
+}
+
+interface UploadZoneProps {
+  onUpload: (result: UploadZoneResult) => void;
+}
+
 /** Drag-and-drop target for a new call recording. Validates, then presigns and PUTs to S3. */
-export default function UploadZone({ onUpload }) {
-  const input = useRef(null);
+export default function UploadZone({ onUpload }: UploadZoneProps) {
+  const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState("");
   const [validationError, setValidationError] = useState("");
   const [progress, setProgress] = useState(0);
   const mutation = useUploadFile();
+  const statusId = useId();
 
   const isBusy = mutation.isPending;
 
-  const handleFile = (file) => {
+  const handleFile = (file: File | undefined) => {
     if (!file || isBusy) return;
 
     const result = validateFile(file);
@@ -32,6 +43,11 @@ export default function UploadZone({ onUpload }) {
     );
   };
 
+  const stopDragging = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+  };
+
   const backendMessage = mutation.isError ? mutation.error.message : "";
   const statusText = isBusy
     ? `Uploading ${fileName}… ${Math.round(progress * 100)}%`
@@ -39,49 +55,51 @@ export default function UploadZone({ onUpload }) {
       ? `${fileName} · Ready to analyse`
       : "Drag and drop MP3, WAV, or M4A here, or choose a file";
 
+  // Drag events only; the Choose audio button is the keyboard and pointer path, so this
+  // element is decorative for interaction purposes and takes no role or tab stop.
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: drag-only; the button is the a11y path
     <div
       className={`upload-zone ${dragging ? "dragging" : ""}`}
-      role="button"
-      tabIndex="0"
-      aria-disabled={isBusy}
-      onClick={() => !isBusy && input.current?.click()}
-      onKeyDown={(e) => !isBusy && (e.key === "Enter" || e.key === " ") && input.current?.click()}
-      onDragOver={(e) => {
-        e.preventDefault();
-        !isBusy && setDragging(true);
+      onDragOver={(event) => {
+        event.preventDefault();
+        if (!isBusy) setDragging(true);
       }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragging(false);
-        handleFile(e.dataTransfer.files[0]);
+      onDragLeave={stopDragging}
+      onDrop={(event) => {
+        stopDragging(event);
+        handleFile(event.dataTransfer.files[0]);
       }}
     >
-      <div className="upload-icon">↑</div>
+      <div className="upload-icon" aria-hidden="true">
+        ↑
+      </div>
       <div>
         <b>Upload a new call recording</b>
-        <small className={mutation.isSuccess ? "uploaded" : ""}>{statusText}</small>
+        <small id={statusId} className={mutation.isSuccess ? "uploaded" : ""}>
+          {statusText}
+        </small>
         {(validationError || backendMessage) && (
-          <small className="upload-zone-error">{validationError || backendMessage}</small>
+          <small className="upload-zone-error" role="alert">
+            {validationError || backendMessage}
+          </small>
         )}
       </div>
-      <button
+      <Button
         type="button"
+        variant="outline"
         disabled={isBusy}
-        onClick={(e) => {
-          e.stopPropagation();
-          input.current?.click();
-        }}
+        aria-describedby={statusId}
+        onClick={() => input.current?.click()}
       >
         {isBusy ? "Uploading…" : "Choose audio"}
-      </button>
+      </Button>
       <input
         ref={input}
         type="file"
         accept="audio/mpeg,audio/wav,audio/x-wav,audio/mp4,.mp3,.wav,.m4a"
         disabled={isBusy}
-        onChange={(e) => handleFile(e.target.files[0])}
+        onChange={(event) => handleFile(event.target.files?.[0])}
       />
     </div>
   );

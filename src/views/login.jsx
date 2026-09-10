@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
+import { Button } from "@/components/ui/button.tsx";
 import { useAuth } from "../auth/auth-context.jsx";
 import { homeRouteFor } from "../auth/roles.js";
-import Button from "../components/shared/button.jsx";
 import "../components/shared/shell.css";
 
 export default function Login() {
@@ -67,7 +67,7 @@ export default function Login() {
           />
         </label>
 
-        <Button variant="primary" type="submit" className="login-submit" disabled={submitting}>
+        <Button type="submit" className="login-submit" disabled={submitting}>
           {submitting ? "Signing in…" : "Sign in"}
         </Button>
       </form>

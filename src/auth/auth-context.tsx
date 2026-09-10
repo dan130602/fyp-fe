@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return result;
   }, []);
 
-  // Must stay synchronous — top-nav.jsx passes it straight to an onClick handler.
+  // Must stay synchronous — top-nav.tsx passes it straight to an onClick handler.
   const logout = useCallback(() => {
     DEV && log.info("Logout transition");
     cognitoAuth.signOut();

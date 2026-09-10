@@ -1,4 +1,4 @@
-import TopNav from "./top-nav.jsx";
+import TopNav from "./top-nav.tsx";
 import "./shell.css";
 
 /**

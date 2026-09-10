@@ -5,6 +5,7 @@
    opening sentence is cited by both `recording_notice` and `identity` — so the
    transcript cannot be rendered by simply wrapping each span in turn. */
 
+import type { Tone } from "../components/ui/badge.tsx";
 import type { SpanTimestamp } from "./audio.ts";
 
 // The verdict strings the AI service emits. "Pass"/"Fail"/"Unclear" are the only
@@ -116,7 +117,7 @@ export function segmentTone(segment: Segment): SpanLabel {
 }
 
 /** Map a finding's verdict onto the shared Badge tones in styles.css. */
-export function verdictTone(verdict: Verdict): string {
+export function verdictTone(verdict: Verdict): Tone {
   if (verdict === "Pass") return "good";
   if (verdict === "Fail") return "risk";
   if (verdict === "Unclear") return "watch";

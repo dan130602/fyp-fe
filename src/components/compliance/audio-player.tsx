@@ -26,6 +26,7 @@ export default function AudioPlayer({ src, audioRef, onTime, onDuration }: Audio
   const ready = Boolean(src) && !failed && Number.isFinite(duration);
 
   // A new recording is a new player: drop whatever the previous one was doing.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: src is the reset trigger, not a read value
   useEffect(() => {
     setPlaying(false);
     setTime(0);
@@ -48,34 +49,57 @@ export default function AudioPlayer({ src, audioRef, onTime, onDuration }: Audio
 
   const progress = ready && duration > 0 ? (time / duration) * 100 : 0;
 
-  return <div className={`player ${ready ? "" : "off"}`}>
-    <button className="play" onClick={toggle} disabled={!ready} aria-label={playing ? "Pause recording" : "Play recording"}>{playing ? "❚❚" : "▶"}</button>
-    <div className="track">
-      <input
-        type="range"
-        min="0"
-        max={Number.isFinite(duration) ? duration : 0}
-        step="0.1"
-        value={ready ? time : 0}
+  return (
+    <div className={`player ${ready ? "" : "off"}`}>
+      <button
+        type="button"
+        className="play"
+        onClick={toggle}
         disabled={!ready}
-        aria-label="Seek recording"
-        onChange={(e) => seek(Number(e.target.value))}
-      />
-      <i style={{ width: `${progress}%` }}/>
+        aria-label={playing ? "Pause recording" : "Play recording"}
+      >
+        {playing ? "❚❚" : "▶"}
+      </button>
+      <div className="track">
+        <input
+          type="range"
+          min="0"
+          max={Number.isFinite(duration) ? duration : 0}
+          step="0.1"
+          value={ready ? time : 0}
+          disabled={!ready}
+          aria-label="Seek recording"
+          onChange={(e) => seek(Number(e.target.value))}
+        />
+        <i style={{ width: `${progress}%` }} />
+      </div>
+      <small>
+        {formatClock(ready ? time : NaN)} / {formatClock(duration)}
+      </small>
+      {!src && <span className="note">No recording attached</span>}
+      {src && failed && <span className="note">Recording unavailable</span>}
+      {src && (
+        <audio
+          ref={audioRef}
+          src={src}
+          preload="metadata"
+          onLoadedMetadata={(e) => {
+            setDuration(e.currentTarget.duration);
+            onDuration?.(e.currentTarget.duration);
+          }}
+          onTimeUpdate={(e) => {
+            setTime(e.currentTarget.currentTime);
+            onTime?.(e.currentTarget.currentTime);
+          }}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onEnded={() => setPlaying(false)}
+          onError={() => setFailed(true)}
+        >
+          {/* No caption file exists for call recordings; the transcript pane is the text alternative. */}
+          <track kind="captions" />
+        </audio>
+      )}
     </div>
-    <small>{formatClock(ready ? time : NaN)} / {formatClock(duration)}</small>
-    {!src && <span className="note">No recording attached</span>}
-    {src && failed && <span className="note">Recording unavailable</span>}
-    {src && <audio
-      ref={audioRef}
-      src={src}
-      preload="metadata"
-      onLoadedMetadata={(e) => { setDuration(e.currentTarget.duration); onDuration?.(e.currentTarget.duration); }}
-      onTimeUpdate={(e) => { setTime(e.currentTarget.currentTime); onTime?.(e.currentTarget.currentTime); }}
-      onPlay={() => setPlaying(true)}
-      onPause={() => setPlaying(false)}
-      onEnded={() => setPlaying(false)}
-      onError={() => setFailed(true)}
-    />}
-  </div>;
+  );
 }

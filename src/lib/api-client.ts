@@ -79,3 +79,8 @@ export function apiPost<T>(path: string, body: unknown): Promise<T> {
   const headers = new Headers({ "Content-Type": "application/json" });
   return request<T>(path, { method: "POST", headers, body: JSON.stringify(body) });
 }
+
+export function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  return request<T>(path, { method: "PATCH", headers, body: JSON.stringify(body) });
+}

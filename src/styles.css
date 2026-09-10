@@ -7,6 +7,9 @@
      views/internal-developer.css   scoped under .tv
      components/shared/shell.css    the auth chrome (top nav, login, placeholder)
 
+   The admin user management view is Tailwind-only; its repeated compound
+   classes are the @utility definitions at the foot of this file.
+
    One palette, two visual languages. The officer view and the shared chrome use
    the --nav/--ink/--blue family. The developer view was authored against its own
    print-like palette; those values live here as --dev-* and internal-developer.css
@@ -24,6 +27,7 @@
   --color-card: var(--card);
   --color-line: var(--line);
   --color-muted: var(--muted);
+  --color-text: var(--text);
   --color-blue: var(--blue);
   --color-blue-soft: var(--blue-soft);
   --color-green: var(--green);
@@ -104,19 +108,26 @@ body {
   background: var(--bg);
   color: var(--ink);
   font:
-    14px / 1.45 Inter,
-    system-ui,
-    -apple-system,
+    14px / 1.45 -apple-system,
+    BlinkMacSystemFont,
     "Segoe UI",
+    system-ui,
+    Helvetica,
+    Arial,
     sans-serif;
 }
 
-/* primitives backing components/shared/button.jsx and badge.jsx */
-button,
+/* Base for the plain <button> elements that carry their own view-scoped styling.
+   The tone classes below are also applied directly to <i>/<small>, not only badges. */
+/* The `font` shorthand resets font-size, so it must not reach shadcn's components:
+   it would override their text-xs/text-sm sizing. */
+button:not([data-slot]),
 textarea {
   font: inherit;
 }
-button {
+/* :not([data-slot]) keeps this off shadcn's components/ui/*, which render their own
+   <button> and would otherwise inherit this 12px/750 over their own text-sm/font-medium. */
+button:not([data-slot]) {
   cursor: pointer;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -138,14 +149,6 @@ button {
 }
 .ghost {
   opacity: 0.82;
-}
-.badge {
-  display: inline-block;
-  padding: 3px 7px;
-  border-radius: 999px;
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: 0.02em;
 }
 .good,
 .pass {
@@ -171,4 +174,18 @@ button {
   .animate-pulse {
     animation: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Admin user management. Compound classes only: repeated button and panel
+   shapes that would otherwise be duplicated across six components. Everything
+   else in that view is plain utilities at the call site.
+--------------------------------------------------------------------------- */
+
+@utility admin-panel {
+  @apply rounded-xl border border-line bg-card px-6 py-9 text-center;
+}
+
+@utility admin-panel-alert {
+  @apply rounded-xl border border-[#f3c8ce] bg-red-soft px-6 py-9 text-center;
 }

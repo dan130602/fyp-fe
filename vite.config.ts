@@ -1,7 +1,8 @@
 import { fileURLToPath, URL } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+// defineConfig comes from vitest/config, not vite, so the `test` block is typed.
+import { defineConfig } from "vitest/config";
 
 // Loads @vitejs/plugin-react, which was a dependency but had no config wiring it in.
 export default defineConfig({
