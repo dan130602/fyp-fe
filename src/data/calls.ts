@@ -7,6 +7,7 @@
    at the bottom, so swapping in a real API later is a change to this file only.
 --------------------------------------------------------------------------- */
 
+import type { Tone } from "../components/ui/badge.tsx";
 import type { Span, Verdict } from "../lib/transcript.ts";
 
 export interface Chunk {
@@ -111,7 +112,7 @@ const PRIORITY_QUEUE = [
   { id: "CC-2481", text: "Risk disclosure acknowledgement not found", tone: "risk" },
   { id: "CC-2477", text: "Identity verification evidence is unclear", tone: "watch" },
   { id: "CC-2469", text: "Potentially unsuitable product explanation", tone: "risk" },
-];
+] satisfies { id: string; text: string; tone: Tone }[];
 
 /** Headline numbers and progress bars for the officer dashboard. */
 export function useDashboardSummary() {
@@ -124,7 +125,7 @@ export function useReviewQueue() {
 }
 
 /** Verdicts that decide how urgent a call looks in the list. */
-function riskOf(summary: Summary): { label: string; tone: string } {
+function riskOf(summary: Summary): { label: string; tone: Tone } {
   if (summary.fail > 0) return { label: "High risk", tone: "risk" };
   if (summary.unclear > 0) return { label: "Needs review", tone: "watch" };
   return { label: "Clear", tone: "good" };

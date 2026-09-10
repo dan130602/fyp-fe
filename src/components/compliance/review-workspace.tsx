@@ -1,5 +1,6 @@
-import type { ComponentType, ReactNode, RefObject } from "react";
 import { useMemo, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import { useAnalysis } from "../../data/calls.ts";
 import { segmentAtTime, segmentTime } from "../../lib/audio.ts";
 import type { Segment, Span } from "../../lib/transcript.ts";
@@ -11,30 +12,8 @@ import {
   verdictTone,
 } from "../../lib/transcript.ts";
 import { usePlaybackUrl } from "../../playback/use-playback-url.ts";
-import Badge from "../shared/badge.jsx";
-import UntypedButton from "../shared/button.jsx";
 import { Skeleton } from "../ui/skeleton.tsx";
-import UntypedAudioPlayer from "./audio-player.jsx";
-
-// button.jsx and audio-player.jsx are plain JS (out of migration scope): TS
-// infers their optional props as required from the undefaulted destructure, so
-// they are recast here to the shape the JS actually accepts at runtime.
-interface ButtonProps {
-  variant?: "primary" | "danger";
-  ghost?: boolean;
-  className?: string;
-  onClick?: () => void;
-  children?: ReactNode;
-}
-const Button = UntypedButton as ComponentType<ButtonProps>;
-
-interface AudioPlayerProps {
-  src: string | null;
-  audioRef: RefObject<HTMLAudioElement | null>;
-  onTime?: (time: number) => void;
-  onDuration?: (duration: number) => void;
-}
-const AudioPlayer = UntypedAudioPlayer as ComponentType<AudioPlayerProps>;
+import AudioPlayer from "./audio-player.tsx";
 
 /** Stable identity for one cited span, so a single span can be highlighted alone. */
 const spanKey = (span: Span) => `${span.checklist_id}:${span.start}:${span.end}`;
@@ -98,14 +77,16 @@ function RecordingInProgress({
     <>
       <section className="heading">
         <div>
-          <button className="back" onClick={onBack}>
+          <Button variant="ghost" size="xs" className="mb-2 self-start" onClick={onBack}>
             ← Review queue
-          </button>
+          </Button>
           <h1>Recording</h1>
           <p>This recording has not been analysed yet.</p>
         </div>
         <div className="actions">
-          <Button onClick={onBack}>Back to queue</Button>
+          <Button variant="outline" onClick={onBack}>
+            Back to queue
+          </Button>
         </div>
       </section>
       <section className="review-layout" aria-busy="true" role="status">
@@ -248,15 +229,17 @@ function AnalysisWorkspace({
     <>
       <section className="heading">
         <div>
-          <button className="back" onClick={onBack}>
+          <Button variant="ghost" size="xs" className="mb-2 self-start" onClick={onBack}>
             ← Review queue
-          </button>
+          </Button>
           <h1>{title}</h1>
           <p>Validate AI-generated checklist answers against the passages they were drawn from.</p>
         </div>
         <div className="actions">
-          <Button onClick={onBack}>Back to queue</Button>
-          <Button variant="primary">Approve current review</Button>
+          <Button variant="outline" onClick={onBack}>
+            Back to queue
+          </Button>
+          <Button>Approve current review</Button>
         </div>
       </section>
 
@@ -264,16 +247,16 @@ function AnalysisWorkspace({
         <article className="card padded">
           <div className="call-head">
             <div>
-              <Badge tone={summary.requires_review ? "risk" : "good"}>
+              <Badge variant={summary.requires_review ? "risk" : "good"}>
                 {summary.requires_review ? "Requires review" : "Cleared"}
               </Badge>
               <h2>Call detail</h2>
               <p>{context}</p>
             </div>
             <div className="actions">
-              <Badge tone="good">{summary.pass} pass</Badge>
-              <Badge tone="risk">{summary.fail} fail</Badge>
-              <Badge tone="watch">{summary.unclear} unclear</Badge>
+              <Badge variant="good">{summary.pass} pass</Badge>
+              <Badge variant="risk">{summary.fail} fail</Badge>
+              <Badge variant="watch">{summary.unclear} unclear</Badge>
             </div>
           </div>
 
@@ -304,21 +287,25 @@ function AnalysisWorkspace({
                 (span) => questions[span.checklist_id] ?? span.checklist_id,
               );
               return (
-                <mark
-                  key={segment.start}
-                  className={`span ${tone} ${lit ? "on" : ""}`}
-                  tabIndex={0}
-                  title={citedQuestions.join("\n")}
-                  onMouseEnter={() => setHover({ checklistId: segment.spans[0].checklist_id })}
-                  onMouseLeave={() => setHover(null)}
-                  onFocus={() => setHover({ checklistId: segment.spans[0].checklist_id })}
-                  onBlur={() => setHover(null)}
-                  onClick={() => {
-                    pin(segment.spans[0].checklist_id);
-                    playFrom(segment);
-                  }}
-                >
-                  {segment.text}
+                // A real <button> inside the <mark>: the mark carries the highlight
+                // semantics, the button carries the click, focus and Enter/Space handling.
+                <mark key={segment.start} className={`span ${tone} ${lit ? "on" : ""}`}>
+                  <button
+                    type="button"
+                    className="span-button"
+                    title={citedQuestions.join("\n")}
+                    aria-label={`Play the audio cited by: ${citedQuestions.join(", ")}`}
+                    onMouseEnter={() => setHover({ checklistId: segment.spans[0].checklist_id })}
+                    onMouseLeave={() => setHover(null)}
+                    onFocus={() => setHover({ checklistId: segment.spans[0].checklist_id })}
+                    onBlur={() => setHover(null)}
+                    onClick={() => {
+                      pin(segment.spans[0].checklist_id);
+                      playFrom(segment);
+                    }}
+                  >
+                    {segment.text}
+                  </button>
                 </mark>
               );
             })}
@@ -330,6 +317,7 @@ function AnalysisWorkspace({
           </div>
           {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => (
             <button
+              type="button"
               className={`result finding ${activeId === id ? "selected" : ""} ${hover && highlight.checklistId !== id ? "dim" : ""}`}
               key={id}
               onMouseEnter={() => setHover({ checklistId: id })}
@@ -341,7 +329,7 @@ function AnalysisWorkspace({
                 <b>{question}</b>
                 <small>{reason}</small>
               </span>
-              <Badge tone={verdictTone(verdict)}>
+              <Badge variant={verdictTone(verdict)}>
                 {verdict} · {confidence}
               </Badge>
             </button>
@@ -349,7 +337,7 @@ function AnalysisWorkspace({
         </article>
 
         <aside className="card padded">
-          <Badge tone={verdictTone(active.verdict)}>
+          <Badge variant={verdictTone(active.verdict)}>
             AI verdict: {active.verdict} · {active.confidence} confidence
           </Badge>
           <h3>{active.question}</h3>
@@ -363,6 +351,7 @@ function AnalysisWorkspace({
           <div className="actions">
             {labelSpansByVerdict(active.spans, findings).map((span) => (
               <button
+                type="button"
                 className={`span-chip ${span.label}`}
                 key={spanKey(span)}
                 onMouseEnter={() =>
@@ -395,20 +384,22 @@ function AnalysisWorkspace({
             <h3>Reviewer decision</h3>
             <div className="actions">
               <Button
-                variant={decision === "Pass" ? "primary" : undefined}
+                variant={decision === "Pass" ? "default" : "outline"}
+                aria-pressed={decision === "Pass"}
                 onClick={() => setDecision("Pass")}
               >
                 Pass
               </Button>
               <Button
-                variant="danger"
-                ghost={decision !== "Fail"}
+                variant={decision === "Fail" ? "destructive" : "outline"}
+                aria-pressed={decision === "Fail"}
                 onClick={() => setDecision("Fail")}
               >
                 Confirm fail
               </Button>
               <Button
-                variant={decision === "Unclear" ? "primary" : undefined}
+                variant={decision === "Unclear" ? "default" : "outline"}
+                aria-pressed={decision === "Unclear"}
                 onClick={() => setDecision("Unclear")}
               >
                 Unclear

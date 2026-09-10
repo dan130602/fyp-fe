@@ -1,6 +1,6 @@
+import { Badge } from "@/components/ui/badge.tsx";
 import { useAnalysisList } from "../../data/calls.ts";
 import { useMediaAssetList } from "../../playback/use-playback-url.ts";
-import Badge from "../shared/badge.jsx";
 
 /** Real media-asset ids are UUIDs from the backend; this prefix keeps them out of that space. */
 const MEDIA_ID_PREFIX = "media:";
@@ -50,7 +50,7 @@ export default function ReviewList({ onOpen }: { onOpen: (id: string) => void })
               <small>{row.context} · recording attached</small>
               <em>Analysis in progress…</em>
             </span>
-            <Badge tone="watch">Awaiting analysis</Badge>
+            <Badge variant="watch">Awaiting analysis</Badge>
           </button>
         ) : (
           <button type="button" className="call-row" key={row.id} onClick={() => onOpen(row.id)}>
@@ -63,11 +63,13 @@ export default function ReviewList({ onOpen }: { onOpen: (id: string) => void })
               <em>{row.preview}…</em>
             </span>
             <span className="call-counts">
-              {row.summary.pass > 0 && <Badge tone="good">{row.summary.pass} pass</Badge>}
-              {row.summary.fail > 0 && <Badge tone="risk">{row.summary.fail} fail</Badge>}
-              {row.summary.unclear > 0 && <Badge tone="watch">{row.summary.unclear} unclear</Badge>}
+              {row.summary.pass > 0 && <Badge variant="good">{row.summary.pass} pass</Badge>}
+              {row.summary.fail > 0 && <Badge variant="risk">{row.summary.fail} fail</Badge>}
+              {row.summary.unclear > 0 && (
+                <Badge variant="watch">{row.summary.unclear} unclear</Badge>
+              )}
             </span>
-            <Badge tone={row.risk.tone}>{row.risk.label}</Badge>
+            <Badge variant={row.risk.tone}>{row.risk.label}</Badge>
           </button>
         ),
       )}
