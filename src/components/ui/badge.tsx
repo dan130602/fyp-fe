@@ -1,0 +1,55 @@
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "cn";
+import { Slot } from "radix-ui";
+import type * as React from "react";
+
+const badgeVariants = cva(
+  "inline-flex w-fit shrink-0 self-center items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-[7px] py-[3px] text-[9px] leading-none font-[850] tracking-[0.02em] tabular-nums whitespace-nowrap transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+        secondary: "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+        destructive:
+          "bg-destructive text-white focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40 [a&]:hover:bg-destructive/90",
+        outline:
+          "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 [a&]:hover:underline",
+        // Compliance status tones. Functional, not decorative: the same tone means the
+        // same thing on every screen, so keep the palette values exactly as they are.
+        good: "bg-green-soft text-green",
+        pass: "bg-green-soft text-green",
+        watch: "bg-amber-soft text-amber",
+        risk: "bg-red-soft text-red",
+        info: "bg-blue-soft text-[#466db8]",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  },
+);
+
+function Badge({
+  className,
+  variant = "default",
+  asChild = false,
+  ...props
+}: React.ComponentProps<"span"> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot.Root : "span";
+
+  return (
+    <Comp
+      data-slot="badge"
+      data-variant={variant}
+      className={cn(badgeVariants({ variant }), className)}
+      {...props}
+    />
+  );
+}
+
+/** The compliance status tones. Same tone means the same thing on every screen. */
+export type Tone = "good" | "pass" | "watch" | "risk" | "info";
+
+export { Badge, badgeVariants };
