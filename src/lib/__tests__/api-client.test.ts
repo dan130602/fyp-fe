@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../auth/cognito-auth.ts", () => ({ getIdToken: vi.fn() }));
 
 const { getIdToken } = await import("../../auth/cognito-auth.ts");
-const { apiGet, apiPost, ApiError } = await import("../api-client.ts");
+const { apiGet, apiPatch, apiPost, ApiError } = await import("../api-client.ts");
 
 const mockGetIdToken = vi.mocked(getIdToken);
 
@@ -153,6 +153,39 @@ describe("apiPost", () => {
     await expect(apiPost("/api/uploads/presigned-urls", { files: [] })).rejects.toMatchObject({
       status: 400,
       message: "File size must be greater than zero for file 'a.mp3'",
+    });
+  });
+});
+
+describe("apiPatch", () => {
+  it("JSON-encodes the body, sets Content-Type, method PATCH, and attaches the bearer token", async () => {
+    mockGetIdToken.mockResolvedValue("the-id-token");
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ok: true }));
+
+    await apiPatch("/api/users/u1/status", { status: "DISABLED" });
+
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toContain("/api/users/u1/status");
+    expect(init?.method).toBe("PATCH");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer the-id-token");
+    expect(headers.get("Content-Type")).toBe("application/json");
+    expect(init?.body).toBe(JSON.stringify({ status: "DISABLED" }));
+  });
+
+  it("throws an ApiError on a non-2xx response", async () => {
+    mockGetIdToken.mockResolvedValue("token");
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(409, {
+        status: 409,
+        error: "Conflict",
+        message: "You cannot change your own role",
+      }),
+    );
+
+    await expect(apiPatch("/api/users/u1/role", { role: "ADMIN" })).rejects.toMatchObject({
+      status: 409,
+      message: "You cannot change your own role",
     });
   });
 });

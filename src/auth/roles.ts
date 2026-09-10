@@ -1,4 +1,5 @@
 // Roles and their home routes; values match the backend's Role enum (t_user.role is authoritative).
+import { ROUTES } from "../routes.ts";
 
 export const ROLES = {
   ADMIN: "ADMIN",
@@ -16,17 +17,17 @@ export interface AuthUser {
 export type LoginResult = { ok: true; user: AuthUser } | { ok: false; error: string };
 
 export const ROLE_LABELS: Record<Role, string> = {
-  [ROLES.ADMIN]: "Compliance manager",
+  [ROLES.ADMIN]: "Administrator",
   [ROLES.OFFICER]: "Compliance officer",
 };
 
 export const ROLE_HOME: Record<Role, string> = {
-  [ROLES.ADMIN]: "/management",
-  [ROLES.OFFICER]: "/review",
+  [ROLES.ADMIN]: ROUTES.MANAGEMENT,
+  [ROLES.OFFICER]: ROUTES.REVIEW,
 };
 
 export function homeRouteFor(role: Role | null | undefined): string {
-  return (role && ROLE_HOME[role]) ?? "/login";
+  return (role && ROLE_HOME[role]) ?? ROUTES.LOGIN;
 }
 
 export function labelForRole(role: Role | null | undefined): string {
