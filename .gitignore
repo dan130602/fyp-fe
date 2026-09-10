@@ -149,3 +149,6 @@ graphify-out/
 
 # Personal Claude Code config (hardcodes machine-specific paths)
 .claude/
+
+# Playwright MCP session artifacts
+.playwright-mcp/
