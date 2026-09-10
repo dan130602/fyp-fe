@@ -1,6 +1,5 @@
 import { type ReactNode, useState } from "react";
 import { Badge } from "@/components/ui/badge.tsx";
-import { useAuth } from "../auth/auth-context.tsx";
 import ChecklistLibrary from "../components/compliance/checklist-library.tsx";
 import Dashboard from "../components/compliance/dashboard.tsx";
 import Reports from "../components/compliance/reports.tsx";

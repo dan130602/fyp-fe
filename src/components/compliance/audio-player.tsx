@@ -26,6 +26,7 @@ export default function AudioPlayer({ src, audioRef, onTime, onDuration }: Audio
   const ready = Boolean(src) && !failed && Number.isFinite(duration);
 
   // A new recording is a new player: drop whatever the previous one was doing.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: src is the reset trigger, not a read value
   useEffect(() => {
     setPlaying(false);
     setTime(0);
@@ -51,6 +52,7 @@ export default function AudioPlayer({ src, audioRef, onTime, onDuration }: Audio
   return (
     <div className={`player ${ready ? "" : "off"}`}>
       <button
+        type="button"
         className="play"
         onClick={toggle}
         disabled={!ready}
@@ -93,7 +95,10 @@ export default function AudioPlayer({ src, audioRef, onTime, onDuration }: Audio
           onPause={() => setPlaying(false)}
           onEnded={() => setPlaying(false)}
           onError={() => setFailed(true)}
-        />
+        >
+          {/* No caption file exists for call recordings; the transcript pane is the text alternative. */}
+          <track kind="captions" />
+        </audio>
       )}
     </div>
   );
