@@ -354,19 +354,19 @@
   margin-top: 1px;
   color: var(--text);
   font-size: 12.5px;
+  font-weight: 400;
   line-height: 1.45;
 }
 .app .upload-zone {
   display: grid;
-  grid-template-columns: 35px 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 13px;
   margin-bottom: 8px;
   padding: 15px 17px;
-  border: 1.5px dashed #aac4f4;
+  border: 1px solid #aac4f4;
   border-radius: 10px;
   background: #f7faff;
-  cursor: pointer;
 }
 .app .upload-zone.dragging {
   border-color: var(--blue);
@@ -374,16 +374,6 @@
 }
 .app .upload-zone input {
   display: none;
-}
-.app .upload-icon {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  background: var(--blue-soft);
-  color: var(--blue);
-  font-size: 16px;
 }
 .app .upload-zone b {
   display: block;
@@ -402,56 +392,6 @@
   margin: 0 0 20px;
   color: var(--green);
   font-size: 11px;
-}
-/* Review queue: one row per analysed call. */
-.app .call-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 14px;
-  align-items: center;
-  width: 100%;
-  padding: 15px 19px;
-  border: 0;
-  border-top: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
-  text-align: left;
-}
-.app .call-row:first-child {
-  border-top: 0;
-}
-.app .call-row:hover {
-  background: #f7faff;
-}
-.app .call-main {
-  min-width: 0;
-}
-.app .call-main b {
-  display: block;
-  font-size: 14px;
-  color: var(--ink);
-}
-.app .call-main small {
-  display: block;
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 10px;
-}
-.app .call-main em {
-  display: block;
-  margin-top: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text);
-  font-size: 11px;
-  font-style: normal;
-}
-.app .call-counts {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 .app .call-head {
   display: flex;
@@ -819,17 +759,7 @@
     grid-template-columns: 1fr;
   }
   .app .upload-zone {
-    grid-template-columns: 35px 1fr;
-  }
-  .app .upload-zone button {
-    grid-column: 2;
-  }
-  .app .call-row {
     grid-template-columns: 1fr;
-    gap: 8px;
-  }
-  .app .call-counts {
-    justify-content: flex-start;
   }
   .app .progress-row {
     grid-template-columns: 85px 1fr 56px;

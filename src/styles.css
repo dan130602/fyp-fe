@@ -26,6 +26,7 @@
   --color-bg: var(--bg);
   --color-card: var(--card);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-muted: var(--muted);
   --color-text: var(--text);
   --color-blue: var(--blue);
@@ -66,6 +67,15 @@
   --radius-xl: 14px;
 }
 
+/* Tailwind v4 borders default to currentColor (dark ink); default them to --line instead. */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+}
+
 :root {
   /* app palette */
   --nav: #102a43;
@@ -76,6 +86,7 @@
   --bg: #f4f7fa;
   --card: #fff;
   --line: #e1e8ef;
+  --line-strong: #c8d3df;
   --blue: #296ee8;
   --blue-soft: #e9f1ff;
   --green: #138473;
