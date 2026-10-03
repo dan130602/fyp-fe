@@ -1,11 +1,18 @@
 // Presign via the backend, then PUT the file bytes straight to S3.
-import { apiPost } from "../lib/api-client.ts";
+import { apiGet, apiPost } from "../lib/api-client.ts";
+
+/** Mirrors the backend's ChecklistItemRequest record. */
+export interface ChecklistItem {
+  id: string;
+  question: string;
+}
 
 /** Mirrors the backend's FileUploadRequest record. */
 export interface FileUploadRequest {
   fileName: string;
   contentType: string;
   fileSize: number;
+  checklist?: ChecklistItem[];
 }
 
 /** Mirrors the backend's FileUploadResponse record. */
@@ -24,6 +31,10 @@ export interface PresignedUploadRequest {
 /** Mirrors the backend's PresignedUploadResponse record. */
 export interface PresignedUploadResponse {
   uploads: FileUploadResponse[];
+}
+
+export function getDefaultChecklist(): Promise<ChecklistItem[]> {
+  return apiGet<ChecklistItem[]>("/api/checklists/default");
 }
 
 export function requestPresignedUploads(

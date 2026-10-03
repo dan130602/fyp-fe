@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../auth/cognito-auth.ts", () => ({ getIdToken: vi.fn() }));
 
 const { getIdToken } = await import("../../auth/cognito-auth.ts");
-const { requestPresignedUploads, putToS3, S3UploadError } = await import("../upload-api.ts");
+const { getDefaultChecklist, requestPresignedUploads, putToS3, S3UploadError } = await import(
+  "../upload-api.ts"
+);
 
 const mockGetIdToken = vi.mocked(getIdToken);
 
@@ -151,5 +153,19 @@ describe("putToS3", () => {
     xhr.onerror?.();
 
     await expect(promise).rejects.toBeInstanceOf(S3UploadError);
+  });
+});
+
+describe("getDefaultChecklist", () => {
+  it("GETs the default checklist and returns the body", async () => {
+    mockGetIdToken.mockResolvedValue("the-id-token");
+    const body = [{ id: "q1", question: "Greeting?" }];
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+    await expect(getDefaultChecklist()).resolves.toEqual(body);
+
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(String(url)).toContain("/api/checklists/default");
+    expect(init?.method ?? "GET").toBe("GET");
   });
 });

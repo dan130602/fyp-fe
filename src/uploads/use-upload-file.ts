@@ -1,6 +1,6 @@
 // One mutation covers presign + PUT: a successful presign with a failed PUT is still a failed upload.
 import { useMutation } from "@tanstack/react-query";
-import type { FileUploadResponse } from "./upload-api.ts";
+import type { ChecklistItem, FileUploadResponse } from "./upload-api.ts";
 import { putToS3, requestPresignedUploads } from "./upload-api.ts";
 
 export interface UploadResult {
@@ -10,12 +10,17 @@ export interface UploadResult {
 
 interface UploadFileVariables {
   file: File;
+  checklist: ChecklistItem[];
   onProgress?: (fraction: number) => void;
 }
 
-async function uploadFile({ file, onProgress }: UploadFileVariables): Promise<UploadResult> {
+async function uploadFile({
+  file,
+  checklist,
+  onProgress,
+}: UploadFileVariables): Promise<UploadResult> {
   const presigned = await requestPresignedUploads([
-    { fileName: file.name, contentType: file.type, fileSize: file.size },
+    { fileName: file.name, contentType: file.type, fileSize: file.size, checklist },
   ]);
 
   const upload: FileUploadResponse | undefined = presigned.uploads[0];
