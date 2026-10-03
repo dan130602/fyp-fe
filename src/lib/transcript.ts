@@ -86,7 +86,7 @@ export function segmentTranscript(transcript: string, spans: Span[] = []): Segme
 function labelFor(verdict: Verdict): SpanLabel {
   if (verdict === "Pass") return "compliant";
   if (verdict === "Fail") return "violation";
-  if (verdict === "Unclear") return "unclear";
+  if (verdict === "Unclear" || verdict === "Partial") return "unclear";
   return null;
 }
 
@@ -120,7 +120,7 @@ export function segmentTone(segment: Segment): SpanLabel {
 export function verdictTone(verdict: Verdict): Tone {
   if (verdict === "Pass") return "good";
   if (verdict === "Fail") return "risk";
-  if (verdict === "Unclear") return "watch";
+  if (verdict === "Unclear" || verdict === "Partial") return "watch";
   return "info";
 }
 
