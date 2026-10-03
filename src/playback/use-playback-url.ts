@@ -1,6 +1,6 @@
 // A presigned URL is a bearer credential: only fetched once an asset is actually selected.
 import { useQuery } from "@tanstack/react-query";
-import { getPlaybackUrl, listMediaAssets } from "./playback-api.ts";
+import { getMediaAssetAnalysis, getPlaybackUrl, listMediaAssets } from "./playback-api.ts";
 
 // Margin taken off the server's own expiry, so a cached URL goes stale before it
 // would actually fail at the player. ~10 minutes off a 60-minute default.
@@ -29,5 +29,16 @@ export function useMediaAssetList() {
     queryKey: ["mediaAssets"],
     queryFn: listMediaAssets,
     retry: false,
+  });
+}
+
+const ANALYSIS_POLL_MS = 15000;
+
+export function useMediaAssetAnalysis(mediaAssetId: string) {
+  return useQuery({
+    queryKey: ["mediaAssetAnalysis", mediaAssetId],
+    queryFn: () => getMediaAssetAnalysis(mediaAssetId),
+    refetchInterval: (query) =>
+      query.state.data?.analysisStatus === "PENDING" ? ANALYSIS_POLL_MS : false,
   });
 }

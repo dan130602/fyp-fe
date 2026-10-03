@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../auth/cognito-auth.ts", () => ({ getIdToken: vi.fn() }));
 
 const { getIdToken } = await import("../../auth/cognito-auth.ts");
-const { listMediaAssets, getPlaybackUrl } = await import("../playback-api.ts");
+const { listMediaAssets, getPlaybackUrl, getMediaAssetAnalysis } = await import(
+  "../playback-api.ts"
+);
 const { ApiError } = await import("../../lib/api-client.ts");
 
 const mockGetIdToken = vi.mocked(getIdToken);
@@ -84,5 +86,28 @@ describe("getPlaybackUrl", () => {
       expect(err).toBeInstanceOf(ApiError);
       expect(err).toMatchObject({ status: 404, message: "Media asset not found" });
     }
+  });
+});
+
+describe("getMediaAssetAnalysis", () => {
+  it("attaches the bearer token and requests the id's analysis path", async () => {
+    mockGetIdToken.mockResolvedValue("the-id-token");
+    const body = {
+      mediaAssetId: "a1",
+      fileName: "call.mp3",
+      assetStatus: "COMPLETED",
+      analysisStatus: "PENDING",
+      failureReason: null,
+      result: null,
+    };
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
+
+    const result = await getMediaAssetAnalysis("a1");
+
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toContain("/api/media-assets/a1/analysis");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer the-id-token");
+    expect(result).toEqual(body);
   });
 });

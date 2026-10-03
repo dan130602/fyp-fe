@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useAnalysis } from "../../data/calls.ts";
+import { toAnalysisView } from "../../data/pipeline-output.ts";
 import { segmentAtTime, segmentTime } from "../../lib/audio.ts";
 import type { Segment, Span } from "../../lib/transcript.ts";
 import {
@@ -11,7 +12,7 @@ import {
   verdictIcon,
   verdictTone,
 } from "../../lib/transcript.ts";
-import { usePlaybackUrl } from "../../playback/use-playback-url.ts";
+import { useMediaAssetAnalysis, usePlaybackUrl } from "../../playback/use-playback-url.ts";
 import { Skeleton } from "../ui/skeleton.tsx";
 import AudioPlayer from "./audio-player.tsx";
 
@@ -52,6 +53,8 @@ function ChecklistSkeleton() {
     </>
   );
 }
+
+type AnalysisView = NonNullable<ReturnType<typeof useAnalysis>>;
 
 /** Which finding is lit up: hover always wins over the pinned selection. */
 interface Highlight {
@@ -135,18 +138,16 @@ export default function ReviewWorkspace({
   onBack: () => void;
   mediaAssetId?: string;
 }) {
-  const isRecording = callId?.startsWith(MEDIA_ID_PREFIX);
-  if (isRecording) {
+  if (callId?.startsWith(MEDIA_ID_PREFIX)) {
     return (
-      <RecordingInProgress mediaAssetId={callId.slice(MEDIA_ID_PREFIX.length)} onBack={onBack} />
+      <RecordingWorkspace mediaAssetId={callId.slice(MEDIA_ID_PREFIX.length)} onBack={onBack} />
     );
   }
 
-  return <AnalysisWorkspace callId={callId} onBack={onBack} mediaAssetId={mediaAssetId} />;
+  return <MockWorkspace callId={callId} onBack={onBack} mediaAssetId={mediaAssetId} />;
 }
 
-/** The existing analysis workspace, unchanged, for mock and future real analyses. */
-function AnalysisWorkspace({
+function MockWorkspace({
   callId,
   onBack,
   mediaAssetId,
@@ -156,6 +157,83 @@ function AnalysisWorkspace({
   mediaAssetId?: string;
 }) {
   const analysis = useAnalysis(callId);
+  return <AnalysisWorkspace analysis={analysis} onBack={onBack} mediaAssetId={mediaAssetId} />;
+}
+
+/** A real recording: in-progress, failed, or the analysis fetched from the backend. */
+function RecordingWorkspace({
+  mediaAssetId,
+  onBack,
+}: {
+  mediaAssetId: string;
+  onBack: () => void;
+}) {
+  const { data, isError, error, refetch } = useMediaAssetAnalysis(mediaAssetId);
+
+  if (isError) {
+    return (
+      <>
+        <section className="heading">
+          <div>
+            <h1>Recording</h1>
+          </div>
+        </section>
+        <p role="alert" className="subtle">
+          Could not load the analysis{error instanceof Error ? `: ${error.message}` : "."}
+        </p>
+        <div className="actions">
+          <Button onClick={() => refetch()}>Retry</Button>
+          <Button variant="outline" onClick={onBack}>
+            Back to queue
+          </Button>
+        </div>
+      </>
+    );
+  }
+
+  if (data?.analysisStatus === "FAILED") {
+    return (
+      <>
+        <section className="heading">
+          <div>
+            <h1>{data.fileName}</h1>
+          </div>
+        </section>
+        <p role="alert" className="subtle">
+          Analysis failed{data.failureReason ? `: ${data.failureReason}` : "."}
+        </p>
+        <div className="actions">
+          <Button variant="outline" onClick={onBack}>
+            Back to queue
+          </Button>
+        </div>
+      </>
+    );
+  }
+
+  if (data?.analysisStatus === "READY" && data.result) {
+    return (
+      <AnalysisWorkspace
+        analysis={toAnalysisView(data.result, data.fileName)}
+        mediaAssetId={mediaAssetId}
+        onBack={onBack}
+      />
+    );
+  }
+
+  return <RecordingInProgress mediaAssetId={mediaAssetId} onBack={onBack} />;
+}
+
+/** The analysis workspace, for mock and real analyses alike. */
+function AnalysisWorkspace({
+  analysis,
+  onBack,
+  mediaAssetId,
+}: {
+  analysis: AnalysisView | null;
+  onBack: () => void;
+  mediaAssetId?: string;
+}) {
   // useAnalysis returns null only when the analyses corpus is empty (see
   // report: NEW GUARD). Every hook below must still run unconditionally, so
   // the fields it reads are given empty-but-typed fallbacks rather than
@@ -276,7 +354,7 @@ function AnalysisWorkspace({
               {estimated && " Passage times are estimated from position in the transcript."}
             </p>
           </div>
-          <div className="evidence transcript">
+          <div className="evidence transcript whitespace-pre-wrap">
             {segments.map((segment) => {
               // A passage cited by more than one question rests on its worst label, but
               // takes the label of whichever finding is lighting it up.
@@ -315,25 +393,27 @@ function AnalysisWorkspace({
             <h2>AI checklist assessment</h2>
             <p>Select an item to inspect its evidence and change the outcome if required.</p>
           </div>
-          {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => (
-            <button
-              type="button"
-              className={`result finding ${activeId === id ? "selected" : ""} ${hover && highlight.checklistId !== id ? "dim" : ""}`}
-              key={id}
-              onMouseEnter={() => setHover({ checklistId: id })}
-              onMouseLeave={() => setHover(null)}
-              onClick={() => pin(id)}
-            >
-              <i className={verdictTone(verdict)}>{verdictIcon(verdict)}</i>
-              <span>
-                <b>{question}</b>
-                <small>{reason}</small>
-              </span>
-              <Badge variant={verdictTone(verdict)}>
-                {verdict} · {confidence}
-              </Badge>
-            </button>
-          ))}
+          <div className="max-h-[28rem] overflow-y-auto overscroll-contain pr-1">
+            {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => (
+              <button
+                type="button"
+                className={`result finding ${activeId === id ? "selected" : ""} ${hover && highlight.checklistId !== id ? "dim" : ""}`}
+                key={id}
+                onMouseEnter={() => setHover({ checklistId: id })}
+                onMouseLeave={() => setHover(null)}
+                onClick={() => pin(id)}
+              >
+                <i className={verdictTone(verdict)}>{verdictIcon(verdict)}</i>
+                <span>
+                  <b>{question}</b>
+                  <small>{reason}</small>
+                </span>
+                <Badge variant={verdictTone(verdict)}>
+                  {verdict} · {confidence}
+                </Badge>
+              </button>
+            ))}
+          </div>
         </article>
 
         <aside className="card padded">
@@ -364,21 +444,25 @@ function AnalysisWorkspace({
             ))}
           </div>
 
-          <div className="rule-heading">
-            <h3>Retrieved evidence</h3>
-            <p>Chunks the retriever surfaced for this question, most relevant first.</p>
-          </div>
-          {[...active.retrieved_evidence]
-            .sort((a, b) => b.score - a.score)
-            .map((chunk) => (
-              <div className="retrieved" key={chunk.chunk_id}>
-                <div>
-                  <b>{chunk.chunk_id}</b>
-                  <span>{chunk.score.toFixed(4)}</span>
-                </div>
-                <small>{chunk.text}</small>
+          {active.retrieved_evidence.length > 0 && (
+            <>
+              <div className="rule-heading">
+                <h3>Retrieved evidence</h3>
+                <p>Chunks the retriever surfaced for this question, most relevant first.</p>
               </div>
-            ))}
+              {[...active.retrieved_evidence]
+                .sort((a, b) => b.score - a.score)
+                .map((chunk) => (
+                  <div className="retrieved" key={chunk.chunk_id}>
+                    <div>
+                      <b>{chunk.chunk_id}</b>
+                      <span>{chunk.score.toFixed(4)}</span>
+                    </div>
+                    <small>{chunk.text}</small>
+                  </div>
+                ))}
+            </>
+          )}
 
           <div className="rule-heading">
             <h3>Reviewer decision</h3>
