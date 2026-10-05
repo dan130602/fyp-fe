@@ -44,18 +44,18 @@ function formatFileSize(bytes: number): string {
 
 type VerdictCounts = Partial<Record<string, number>>;
 
-/** Verdict badge for a completed recording; falls back to "Completed" until its analysis loads. */
+/** Verdict badge for a completed recording; is "Awaiting analysis" until the analysis result is in. */
 function verdictOf(counts: VerdictCounts | undefined): {
   label: string;
   tone: Tone;
   priority: number;
 } {
-  if (!counts) return { label: "Completed", tone: "good", priority: 2 };
+  if (!counts) return { label: "Awaiting analysis", tone: "info", priority: 2 };
   if (counts.FAIL) return { label: "High risk", tone: "risk", priority: 0 };
-  if (counts.PARTIAL || counts.CANNOT_DETERMINE) {
+  if (counts.PARTIAL || counts.CANNOT_DETERMINE || counts.NOT_APPLICABLE || !counts.PASS) {
     return { label: "Needs review", tone: "watch", priority: 1 };
   }
-  return { label: "Clear", tone: "good", priority: 3 };
+  return { label: "Passed", tone: "good", priority: 3 };
 }
 
 function priorityOf(status: string, counts: VerdictCounts | undefined): number {
@@ -105,7 +105,7 @@ const RAIL: Partial<Record<Tone, string>> = {
 const STATUS_OPTIONS: { label: string; dot: string }[] = [
   { label: "High risk", dot: "bg-red" },
   { label: "Needs review", dot: "bg-amber" },
-  { label: "Clear", dot: "bg-green" },
+  { label: "Passed", dot: "bg-green" },
   { label: "Awaiting analysis", dot: "bg-blue" },
   { label: "Failed", dot: "bg-red" },
 ];
@@ -141,7 +141,7 @@ const RESULT_SEGMENTS = [
 
 /** Checklist verdict counts from the recording's analysis. */
 function RecordingChecklist({ counts }: { counts: VerdictCounts | undefined }) {
-  if (!counts) return <span className="text-[11px] text-muted">Open to view results</span>;
+  if (!counts) return <span className="text-[11px] text-muted">Analysis in progress…</span>;
   const segments = RESULT_SEGMENTS.map((segment) => ({
     ...segment,
     count: counts[segment.status] ?? 0,
