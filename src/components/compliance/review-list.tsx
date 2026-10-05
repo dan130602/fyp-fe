@@ -1,4 +1,5 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, ListFilter, Search } from "lucide-react";
+import { useQueries } from "@tanstack/react-query";
 import { useState } from "react";
 import { Badge, type Tone } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -20,24 +21,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table.tsx";
-import { useAnalysisList } from "../../data/calls.ts";
 import {
   DEFAULT_DIRECTION,
   filterAndSortQueue,
   type QueueSortColumn,
   type SortDirection,
 } from "../../data/review-queue-utils.ts";
+import { getMediaAssetAnalysis } from "../../playback/playback-api.ts";
 import { useMediaAssetList } from "../../playback/use-playback-url.ts";
 
 /** Real media-asset ids are UUIDs from the backend; this prefix keeps them out of that space. */
 const MEDIA_ID_PREFIX = "media:";
 
-type CallRow = ReturnType<typeof useAnalysisList>[number] & {
-  isRecording: false;
-  priority: number;
-};
-type RecordingRow = ReturnType<typeof useMediaAssetRows>[number];
-type ReviewRow = CallRow | RecordingRow;
+type ReviewRow = ReturnType<typeof useMediaAssetRows>[number];
 
 /** A readable size for a recording that has no analysis yet. */
 function formatFileSize(bytes: number): string {
@@ -46,24 +42,48 @@ function formatFileSize(bytes: number): string {
   return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
 }
 
-/** Failing calls first, then unclear ones, then recordings awaiting analysis, then clear calls. */
-function callPriority(summary: { fail: number; unclear: number }): number {
-  if (summary.fail > 0) return 0;
-  if (summary.unclear > 0) return 1;
-  return 3;
+type VerdictCounts = Partial<Record<string, number>>;
+
+/** Verdict badge for a completed recording; falls back to "Completed" until its analysis loads. */
+function verdictOf(counts: VerdictCounts | undefined): {
+  label: string;
+  tone: Tone;
+  priority: number;
+} {
+  if (!counts) return { label: "Completed", tone: "good", priority: 2 };
+  if (counts.FAIL) return { label: "High risk", tone: "risk", priority: 0 };
+  if (counts.PARTIAL || counts.CANNOT_DETERMINE) {
+    return { label: "Needs review", tone: "watch", priority: 1 };
+  }
+  return { label: "Clear", tone: "good", priority: 3 };
 }
 
-/** One row per uploaded recording, none of them analysed yet. */
+function priorityOf(status: string, counts: VerdictCounts | undefined): number {
+  if (status === "FAILED") return 0;
+  return status === "COMPLETED" ? verdictOf(counts).priority : 2;
+}
+
+/** One row per uploaded recording; `assetStatus` is the backend's processing state. */
 function useMediaAssetRows() {
   const { data: assets } = useMediaAssetList();
-  return (assets ?? []).map((asset) => ({
+  const list = assets ?? [];
+  // Same query key as the workspace, so opening a row reuses this cache.
+  const analyses = useQueries({
+    queries: list.map((asset) => ({
+      queryKey: ["mediaAssetAnalysis", asset.id],
+      queryFn: () => getMediaAssetAnalysis(asset.id),
+      enabled: asset.status === "COMPLETED",
+    })),
+  });
+  return list.map((asset, index) => ({
+    counts: analyses[index]?.data?.result?.summary?.counts as VerdictCounts | undefined,
     id: `${MEDIA_ID_PREFIX}${asset.id}`,
     mediaAssetId: asset.id,
-    isRecording: true as const,
+    assetStatus: asset.status,
     title: asset.originalFilename,
     context: formatFileSize(asset.fileSizeBytes),
     createdAt: asset.createdAt,
-    priority: 2,
+    priority: priorityOf(asset.status, analyses[index]?.data?.result?.summary?.counts),
   }));
 }
 
@@ -85,12 +105,15 @@ const RAIL: Partial<Record<Tone, string>> = {
 const STATUS_OPTIONS: { label: string; dot: string }[] = [
   { label: "High risk", dot: "bg-red" },
   { label: "Needs review", dot: "bg-amber" },
-  { label: "Awaiting analysis", dot: "bg-blue" },
   { label: "Clear", dot: "bg-green" },
+  { label: "Awaiting analysis", dot: "bg-blue" },
+  { label: "Failed", dot: "bg-red" },
 ];
 
 function statusOf(row: ReviewRow): { label: string; tone: Tone } {
-  return row.isRecording ? { label: "Awaiting analysis", tone: "info" } : row.risk;
+  if (row.assetStatus === "COMPLETED") return verdictOf(row.counts);
+  if (row.assetStatus === "FAILED") return { label: "Failed", tone: "risk" };
+  return { label: "Awaiting analysis", tone: "info" };
 }
 
 function UploadedAt({ value }: { value: string | undefined }) {
@@ -108,24 +131,28 @@ function UploadedAt({ value }: { value: string | undefined }) {
   );
 }
 
-function ChecklistResult({
-  summary,
-}: {
-  summary: { pass: number; fail: number; unclear: number };
-}) {
-  const total = summary.pass + summary.fail + summary.unclear || 1;
-  const segments = [
-    { count: summary.pass, label: "pass", bar: "bg-green", text: "text-green" },
-    { count: summary.fail, label: "fail", bar: "bg-red", text: "text-red" },
-    { count: summary.unclear, label: "unclear", bar: "bg-amber", text: "text-amber" },
-  ].filter((segment) => segment.count > 0);
+const RESULT_SEGMENTS = [
+  { status: "PASS", label: "pass", bar: "bg-green", text: "text-green" },
+  { status: "PARTIAL", label: "partial", bar: "bg-amber", text: "text-amber" },
+  { status: "FAIL", label: "fail", bar: "bg-red", text: "text-red" },
+  { status: "CANNOT_DETERMINE", label: "unclear", bar: "bg-amber", text: "text-amber" },
+  { status: "NOT_APPLICABLE", label: "n/a", bar: "bg-line-strong", text: "text-muted" },
+] as const;
 
+/** Checklist verdict counts from the recording's analysis. */
+function RecordingChecklist({ counts }: { counts: VerdictCounts | undefined }) {
+  if (!counts) return <span className="text-[11px] text-muted">Open to view results</span>;
+  const segments = RESULT_SEGMENTS.map((segment) => ({
+    ...segment,
+    count: counts[segment.status] ?? 0,
+  })).filter((segment) => segment.count > 0);
+  const total = segments.reduce((sum, segment) => sum + segment.count, 0) || 1;
   return (
     <div className="grid w-40 gap-1.5">
       <div className="flex h-1.5 overflow-hidden rounded-full bg-line" aria-hidden="true">
         {segments.map((segment) => (
           <span
-            key={segment.label}
+            key={segment.status}
             className={segment.bar}
             style={{ width: `${(segment.count / total) * 100}%` }}
           />
@@ -133,7 +160,7 @@ function ChecklistResult({
       </div>
       <span className="flex gap-2.5 text-[11px] font-semibold tabular-nums">
         {segments.map((segment) => (
-          <span key={segment.label} className={segment.text}>
+          <span key={segment.status} className={segment.text}>
             {segment.count} {segment.label}
           </span>
         ))}
@@ -163,15 +190,9 @@ function SortIcon({ active, direction }: { active: boolean; direction: SortDirec
 export default function ReviewList({ onOpen }: { onOpen: (id: string) => void }) {
   const [search, setSearch] = useState("");
   const [statuses, setStatuses] = useState<string[]>([]);
-  const [sortColumn, setSortColumn] = useState<QueueSortColumn>("status");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const calls = useAnalysisList().map((call) => ({
-    ...call,
-    isRecording: false as const,
-    priority: callPriority(call.summary),
-  }));
-  const recordings = useMediaAssetRows();
-  const allRows = [...calls, ...recordings].map((row) => ({
+  const [sortColumn, setSortColumn] = useState<QueueSortColumn>("uploaded");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const allRows = useMediaAssetRows().map((row) => ({
     ...row,
     statusLabel: statusOf(row).label,
   }));
@@ -353,17 +374,19 @@ export default function ReviewList({ onOpen }: { onOpen: (id: string) => void })
                     </button>
                     <span className="mt-0.5 block text-[11px] text-muted">
                       {row.context}
-                      {row.isRecording || row.hasAudio ? " · recording attached" : ""}
+                      {" · recording attached"}
                     </span>
                   </TableCell>
                   <TableCell className="px-3 py-2.5">
-                    <UploadedAt value={row.isRecording ? row.createdAt : undefined} />
+                    <UploadedAt value={row.createdAt} />
                   </TableCell>
                   <TableCell className="px-3 py-2.5">
-                    {row.isRecording ? (
-                      <span className="text-[11px] text-muted">Analysis in progress…</span>
+                    {row.assetStatus === "COMPLETED" ? (
+                      <RecordingChecklist counts={row.counts} />
                     ) : (
-                      <ChecklistResult summary={row.summary} />
+                      <span className="text-[11px] text-muted">
+                        {row.assetStatus === "PENDING" ? "Analysis in progress…" : "No result"}
+                      </span>
                     )}
                   </TableCell>
                   <TableCell className="px-3 py-2.5">
