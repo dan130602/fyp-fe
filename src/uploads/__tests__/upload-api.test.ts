@@ -80,6 +80,19 @@ describe("requestPresignedUploads", () => {
     expect(result.uploads[0].objectKey).toBe("uploads/u1/x-call.mp3");
   });
 
+  it("sends processing_mode in snake_case when given", async () => {
+    mockGetIdToken.mockResolvedValue("token");
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { uploads: [] }));
+
+    await requestPresignedUploads(
+      [{ fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 1024 }],
+      "batch",
+    );
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    expect(JSON.parse(init?.body as string)).toMatchObject({ processing_mode: "batch" });
+  });
+
   it("surfaces the backend's specific validation message on 400", async () => {
     mockGetIdToken.mockResolvedValue("token");
     vi.mocked(fetch).mockResolvedValue(

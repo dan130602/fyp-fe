@@ -1,7 +1,9 @@
 import type { PipelineOutput } from "../data/pipeline-output.ts";
 import { apiGet } from "../lib/api-client.ts";
+import type { ProcessingMode } from "../uploads/upload-api.ts";
 
-export type MediaAssetStatus = "PENDING" | "COMPLETED" | "FAILED";
+// QUEUED and PROCESSING only occur for batch assets.
+export type MediaAssetStatus = "PENDING" | "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
 
 /** Mirrors the backend's media asset response DTO; `objectKey` is deliberately never returned. */
 export interface MediaAsset {
@@ -10,6 +12,7 @@ export interface MediaAsset {
   contentType: string;
   fileSizeBytes: number;
   status: MediaAssetStatus;
+  processingMode: ProcessingMode;
   createdAt: string;
 }
 

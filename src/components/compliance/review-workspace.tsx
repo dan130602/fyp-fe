@@ -12,7 +12,11 @@ import {
   verdictIcon,
   verdictTone,
 } from "../../lib/transcript.ts";
-import { useMediaAssetAnalysis, usePlaybackUrl } from "../../playback/use-playback-url.ts";
+import {
+  useIsBatchAsset,
+  useMediaAssetAnalysis,
+  usePlaybackUrl,
+} from "../../playback/use-playback-url.ts";
 import { Skeleton } from "../ui/skeleton.tsx";
 import AudioPlayer from "./audio-player.tsx";
 
@@ -74,7 +78,8 @@ function RecordingInProgress({
   onBack: () => void;
 }) {
   const audio = useRef<HTMLAudioElement>(null);
-  const { data: playback } = usePlaybackUrl(mediaAssetId);
+  const isBatch = useIsBatchAsset(mediaAssetId);
+  const { data: playback } = usePlaybackUrl(isBatch ? undefined : mediaAssetId);
 
   return (
     <>
@@ -94,10 +99,11 @@ function RecordingInProgress({
       </section>
       <section className="review-layout" aria-busy="true" role="status">
         <article className="card padded">
-          <AudioPlayer src={playback?.url ?? null} audioRef={audio} />
+          {!isBatch && <AudioPlayer src={playback?.url ?? null} audioRef={audio} />}
           <p className="subtle">
             <strong>Analysis in progress.</strong> Check back once the compliance pipeline has
             processed this recording.
+            {isBatch && " Batch jobs run at 8pm SGT on weekdays."}
           </p>
           <div className="rule-heading">
             <h2>Transcript</h2>
@@ -252,7 +258,8 @@ function AnalysisWorkspace({
   const audio = useRef<HTMLAudioElement>(null);
   const [duration, setDuration] = useState(NaN);
   const [playhead, setPlayhead] = useState(0);
-  const { data: playback } = usePlaybackUrl(mediaAssetId);
+  const isBatch = useIsBatchAsset(mediaAssetId);
+  const { data: playback } = usePlaybackUrl(isBatch ? undefined : mediaAssetId);
 
   const cited = useMemo(() => labelSpansByVerdict(spans, findings), [spans, findings]);
   const segments = useMemo(() => segmentTranscript(transcript, cited), [transcript, cited]);
@@ -338,12 +345,16 @@ function AnalysisWorkspace({
             </div>
           </div>
 
-          <AudioPlayer
-            src={playback?.url ?? null}
-            audioRef={audio}
-            onTime={setPlayhead}
-            onDuration={setDuration}
-          />
+          {isBatch ? (
+            <p className="subtle">Audio is not kept for batch-processed recordings.</p>
+          ) : (
+            <AudioPlayer
+              src={playback?.url ?? null}
+              audioRef={audio}
+              onTime={setPlayhead}
+              onDuration={setDuration}
+            />
+          )}
           <div className="rule-heading">
             <h2>Transcript</h2>
             <p>
@@ -372,7 +383,11 @@ function AnalysisWorkspace({
                     type="button"
                     className="span-button"
                     title={citedQuestions.join("\n")}
-                    aria-label={`Play the audio cited by: ${citedQuestions.join(", ")}`}
+                    aria-label={
+                      isBatch
+                        ? `Cited by: ${citedQuestions.join(", ")}`
+                        : `Play the audio cited by: ${citedQuestions.join(", ")}`
+                    }
                     onMouseEnter={() => setHover({ checklistId: segment.spans[0].checklist_id })}
                     onMouseLeave={() => setHover(null)}
                     onFocus={() => setHover({ checklistId: segment.spans[0].checklist_id })}

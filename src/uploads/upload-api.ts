@@ -23,9 +23,14 @@ export interface FileUploadResponse {
   expiresIn: number;
 }
 
+export const PROCESSING_MODES = ["immediate", "batch"] as const;
+export type ProcessingMode = (typeof PROCESSING_MODES)[number];
+
 /** Mirrors the backend's PresignedUploadRequest record. */
 export interface PresignedUploadRequest {
   files: FileUploadRequest[];
+  // snake_case is the backend's contract here; every other field is camelCase.
+  processing_mode?: ProcessingMode;
 }
 
 /** Mirrors the backend's PresignedUploadResponse record. */
@@ -39,9 +44,11 @@ export function getDefaultChecklist(): Promise<ChecklistItem[]> {
 
 export function requestPresignedUploads(
   files: FileUploadRequest[],
+  processingMode?: ProcessingMode,
 ): Promise<PresignedUploadResponse> {
   return apiPost<PresignedUploadResponse>("/api/uploads/presigned-urls", {
     files,
+    processing_mode: processingMode,
   } satisfies PresignedUploadRequest);
 }
 

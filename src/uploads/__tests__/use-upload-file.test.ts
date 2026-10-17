@@ -47,10 +47,12 @@ describe("useUploadFile", () => {
     expect(result.current.data).toEqual({
       fileName: "call.mp3",
       objectKey: "uploads/u1/x-call.mp3",
+      processingMode: "immediate",
     });
-    expect(mockPresign).toHaveBeenCalledWith([
-      { fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 3, checklist: [] },
-    ]);
+    expect(mockPresign).toHaveBeenCalledWith(
+      [{ fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 3, checklist: [] }],
+      "immediate",
+    );
     expect(mockPutToS3).toHaveBeenCalledWith("https://s3.example/x", file, "audio/mpeg", undefined);
   });
 
@@ -108,8 +110,32 @@ describe("useUploadFile", () => {
     act(() => result.current.mutate({ file, checklist }));
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockPresign).toHaveBeenCalledWith([
-      { fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 3, checklist },
-    ]);
+    expect(mockPresign).toHaveBeenCalledWith(
+      [{ fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 3, checklist }],
+      "immediate",
+    );
+  });
+
+  it("passes the chosen processing mode to the presign request and result", async () => {
+    mockPresign.mockResolvedValue({
+      uploads: [
+        {
+          fileName: "call.mp3",
+          objectKey: "id1/call.mp3",
+          presignedUrl: "https://s3.example/x",
+          expiresIn: 900,
+        },
+      ],
+    });
+    mockPutToS3.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useUploadFile(), { wrapper });
+    const file = new File(["abc"], "call.mp3", { type: "audio/mpeg" });
+
+    act(() => result.current.mutate({ file, checklist: [], processingMode: "batch" }));
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mockPresign.mock.calls[0][1]).toBe("batch");
+    expect(result.current.data?.processingMode).toBe("batch");
   });
 });

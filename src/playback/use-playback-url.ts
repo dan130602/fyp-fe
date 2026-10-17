@@ -1,6 +1,11 @@
 // A presigned URL is a bearer credential: only fetched once an asset is actually selected.
 import { useQuery } from "@tanstack/react-query";
-import { getMediaAssetAnalysis, getPlaybackUrl, listMediaAssets } from "./playback-api.ts";
+import {
+  getMediaAssetAnalysis,
+  getPlaybackUrl,
+  listMediaAssets,
+  type MediaAsset,
+} from "./playback-api.ts";
 
 // Margin taken off the server's own expiry, so a cached URL goes stale before it
 // would actually fail at the player. ~10 minutes off a 60-minute default.
@@ -23,13 +28,30 @@ export function usePlaybackUrl(mediaAssetId: string | undefined) {
   });
 }
 
+const IMMEDIATE_POLL_MS = 10 * 1000;
+// Batch items sit unchanged until the 8pm run, so there is no point polling fast.
+const BATCH_POLL_MS = 5 * 60 * 1000;
+
+export function listPollInterval(assets: MediaAsset[] | undefined): number | false {
+  const open = (assets ?? []).filter((a) => a.status !== "COMPLETED" && a.status !== "FAILED");
+  if (open.some((a) => a.processingMode !== "batch")) return IMMEDIATE_POLL_MS;
+  return open.length > 0 ? BATCH_POLL_MS : false;
+}
+
 // Logged-out or errored callers still see the mock queue, so this never retries or throws.
 export function useMediaAssetList() {
   return useQuery({
     queryKey: ["mediaAssets"],
     queryFn: listMediaAssets,
     retry: false,
+    refetchInterval: (query) => listPollInterval(query.state.data),
   });
+}
+
+/** Batch audio is deleted once processing completes, so batch assets have no playback. */
+export function useIsBatchAsset(mediaAssetId: string | undefined) {
+  const { data } = useMediaAssetList();
+  return data?.find((asset) => asset.id === mediaAssetId)?.processingMode === "batch";
 }
 
 const ANALYSIS_POLL_MS = 15000;

@@ -1,5 +1,5 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, ListFilter, Search } from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight, ListFilter, Search } from "lucide-react";
 import { useState } from "react";
 import { Badge, type Tone } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -80,6 +80,7 @@ function useMediaAssetRows() {
     id: `${MEDIA_ID_PREFIX}${asset.id}`,
     mediaAssetId: asset.id,
     assetStatus: asset.status,
+    processingMode: asset.processingMode,
     title: asset.originalFilename,
     context: formatFileSize(asset.fileSizeBytes),
     createdAt: asset.createdAt,
@@ -107,14 +108,34 @@ const STATUS_OPTIONS: { label: string; dot: string }[] = [
   { label: "Needs review", dot: "bg-amber" },
   { label: "Passed", dot: "bg-green" },
   { label: "Awaiting analysis", dot: "bg-blue" },
+  { label: "Pending", dot: "bg-blue" },
+  { label: "Queued for the next batch", dot: "bg-blue" },
+  { label: "Processing", dot: "bg-blue" },
   { label: "Failed", dot: "bg-red" },
 ];
 
 function statusOf(row: ReviewRow): { label: string; tone: Tone } {
-  if (row.assetStatus === "COMPLETED") return verdictOf(row.counts);
-  if (row.assetStatus === "FAILED") return { label: "Failed", tone: "risk" };
-  return { label: "Awaiting analysis", tone: "info" };
+  switch (row.assetStatus) {
+    case "COMPLETED":
+      return verdictOf(row.counts);
+    case "FAILED":
+      return { label: "Failed", tone: "risk" };
+    case "PENDING":
+      return { label: "Pending", tone: "info" };
+    case "QUEUED":
+      return { label: "Queued for the next batch", tone: "info" };
+    case "PROCESSING":
+      return { label: "Processing", tone: "info" };
+    default: {
+      const unhandled: never = row.assetStatus;
+      throw new Error(`Unhandled media asset status: ${unhandled}`);
+    }
+  }
 }
+
+/** Batch items wait for the scheduled run while PENDING or QUEUED. */
+const showsBatchNote = (row: ReviewRow) =>
+  row.processingMode === "batch" && (row.assetStatus === "PENDING" || row.assetStatus === "QUEUED");
 
 function UploadedAt({ value }: { value: string | undefined }) {
   const date = value ? new Date(value) : null;
@@ -385,12 +406,17 @@ export default function ReviewList({ onOpen }: { onOpen: (id: string) => void })
                       <RecordingChecklist counts={row.counts} />
                     ) : (
                       <span className="text-[11px] text-muted">
-                        {row.assetStatus === "PENDING" ? "Analysis in progress…" : "No result"}
+                        {row.assetStatus === "FAILED" ? "No result" : "Analysis in progress…"}
                       </span>
                     )}
                   </TableCell>
                   <TableCell className="px-3 py-2.5">
                     <Badge variant={status.tone}>{status.label}</Badge>
+                    {showsBatchNote(row) && (
+                      <span className="mt-0.5 block text-[11px] text-muted">
+                        Runs at 8pm SGT on weekdays
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="w-10 py-2.5 pr-4 text-right">
                     <ChevronRight

@@ -17,7 +17,7 @@ import {
   newChecklistId,
   parseChecklistCsv,
 } from "@/uploads/parse-checklist-csv.ts";
-import type { ChecklistItem } from "@/uploads/upload-api.ts";
+import type { ChecklistItem, ProcessingMode } from "@/uploads/upload-api.ts";
 import { validateFile } from "@/uploads/upload-validation.ts";
 import { useDefaultChecklist } from "@/uploads/use-default-checklist.ts";
 import { type UploadResult, useUploadFile } from "@/uploads/use-upload-file.ts";
@@ -34,10 +34,14 @@ const STEPS = [
   },
   {
     title: "Review",
-    description:
-      "Check the file and questions, then upload. Processing starts once the upload finishes.",
+    description: "Check the file and questions, choose when to process it, then upload.",
   },
 ] as const;
+
+const MODE_OPTIONS: { value: ProcessingMode; label: string }[] = [
+  { value: "immediate", label: "Process now" },
+  { value: "batch", label: "Process later" },
+];
 
 interface UploadDialogProps {
   open: boolean;
@@ -53,12 +57,14 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
   const defaults = useDefaultChecklist();
   const checklist = edited ?? defaults.data ?? [];
   const [progress, setProgress] = useState(0);
+  const [processingMode, setProcessingMode] = useState<ProcessingMode>("immediate");
   const mutation = useUploadFile();
 
   const reset = () => {
     setStep(0);
     setFile(null);
     setEdited(null);
+    setProcessingMode("immediate");
     setProgress(0);
     mutation.reset();
   };
@@ -72,7 +78,7 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
   const upload = () => {
     if (!file) return;
     mutation.mutate(
-      { file, checklist, onProgress: setProgress },
+      { file, checklist, processingMode, onProgress: setProgress },
       {
         onSuccess: (result) => {
           onUploaded({ ...result, file });
@@ -105,7 +111,15 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
         {step === 1 && !defaults.isPending && (
           <ChecklistStep items={checklist} onChange={setEdited} />
         )}
-        {step === 2 && file && <ReviewStep file={file} items={checklist} />}
+        {step === 2 && file && (
+          <ReviewStep
+            file={file}
+            items={checklist}
+            processingMode={processingMode}
+            onProcessingModeChange={setProcessingMode}
+            disabled={mutation.isPending}
+          />
+        )}
 
         {mutation.isPending && <p className="text-sm">Uploading… {Math.round(progress * 100)}%</p>}
         {mutation.isError && (
@@ -304,10 +318,42 @@ function SourceBadge({ item }: { item: ChecklistItem }) {
   );
 }
 
-function ReviewStep({ file, items }: { file: File; items: ChecklistItem[] }) {
+function ReviewStep({
+  file,
+  items,
+  processingMode,
+  onProcessingModeChange,
+  disabled,
+}: {
+  file: File;
+  items: ChecklistItem[];
+  processingMode: ProcessingMode;
+  onProcessingModeChange: (mode: ProcessingMode) => void;
+  disabled: boolean;
+}) {
   const custom = items.filter(isCustomQuestion).length;
   return (
     <div className="grid gap-3 text-sm">
+      <div role="radiogroup" aria-label="When to process" className="flex flex-wrap gap-2">
+        {MODE_OPTIONS.map((option) => (
+          <Button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={processingMode === option.value}
+            variant={processingMode === option.value ? "default" : "outline"}
+            disabled={disabled}
+            onClick={() => onProcessingModeChange(option.value)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+      {processingMode === "batch" && (
+        <p role="note" className="rounded-md bg-blue-soft px-3 py-2">
+          Batch jobs run at 8pm SGT on weekdays.
+        </p>
+      )}
       <p>
         <b>File:</b> {file.name} ({(file.size / (1024 * 1024)).toFixed(1)} MB)
       </p>
