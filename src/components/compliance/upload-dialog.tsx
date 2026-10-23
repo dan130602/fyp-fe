@@ -1,5 +1,7 @@
 import { Download, FileUp, Plus } from "lucide-react";
 import { type ChangeEvent, type DragEvent, useState } from "react";
+import type { Advisor } from "@/advisors/advisors-api.ts";
+import AdvisorPicker from "@/components/compliance/advisor-picker.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import {
@@ -28,13 +30,17 @@ const STEPS = [
     description: "Pick the call recording to analyse. MP3, WAV or M4A, up to 100 MB.",
   },
   {
+    title: "Advisor",
+    description: "Choose the advisor on this call, so the analysis counts towards their results.",
+  },
+  {
     title: "Checklist",
     description:
       "These are the questions the AI will answer about this call. Remove any that don't apply, add your own, or import many at once from a CSV.",
   },
   {
     title: "Review",
-    description: "Check the file and questions, choose when to process it, then upload.",
+    description: "Check the file, advisor and questions, choose when to process it, then upload.",
   },
 ] as const;
 
@@ -49,10 +55,11 @@ interface UploadDialogProps {
   onUploaded: (result: UploadResult & { file: File }) => void;
 }
 
-/** Three-step upload: pick a recording, edit its checklist, review and upload. */
+/** Four-step upload: pick a recording, pick its advisor, edit its checklist, review and upload. */
 export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadDialogProps) {
   const [step, setStep] = useState(0);
   const [file, setFile] = useState<File | null>(null);
+  const [advisor, setAdvisor] = useState<Advisor | null>(null);
   const [edited, setEdited] = useState<ChecklistItem[] | null>(null);
   const defaults = useDefaultChecklist();
   const checklist = edited ?? defaults.data ?? [];
@@ -63,6 +70,7 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
   const reset = () => {
     setStep(0);
     setFile(null);
+    setAdvisor(null);
     setEdited(null);
     setProcessingMode("immediate");
     setProgress(0);
@@ -76,9 +84,9 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
   };
 
   const upload = () => {
-    if (!file) return;
+    if (!file || !advisor) return;
     mutation.mutate(
-      { file, checklist, processingMode, onProgress: setProgress },
+      { file, checklist, advisorId: advisor.id, processingMode, onProgress: setProgress },
       {
         onSuccess: (result) => {
           onUploaded({ ...result, file });
@@ -88,7 +96,8 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
     );
   };
 
-  const canContinue = step === 0 ? file !== null : checklist.length > 0;
+  const canContinue = [file !== null, advisor !== null, checklist.length > 0][step] ?? false;
+  const lastStep = STEPS.length - 1;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -102,18 +111,20 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
         </DialogHeader>
 
         {step === 0 && <FileStep file={file} onChange={setFile} />}
-        {step === 1 && defaults.isPending && <p className="text-sm">Loading checklist…</p>}
-        {step === 1 && defaults.isError && (
+        {step === 1 && <AdvisorPicker selected={advisor} onSelect={setAdvisor} />}
+        {step === 2 && defaults.isPending && <p className="text-sm">Loading checklist…</p>}
+        {step === 2 && defaults.isError && (
           <p role="alert" className="text-sm text-destructive">
             Couldn't load the default checklist. You can still add questions.
           </p>
         )}
-        {step === 1 && !defaults.isPending && (
+        {step === 2 && !defaults.isPending && (
           <ChecklistStep items={checklist} onChange={setEdited} />
         )}
-        {step === 2 && file && (
+        {step === lastStep && file && advisor && (
           <ReviewStep
             file={file}
+            advisor={advisor}
             items={checklist}
             processingMode={processingMode}
             onProcessingModeChange={setProcessingMode}
@@ -138,7 +149,7 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
               Back
             </Button>
           )}
-          {step < 2 ? (
+          {step < lastStep ? (
             <Button disabled={!canContinue} onClick={() => setStep(step + 1)}>
               Next
             </Button>
@@ -320,12 +331,14 @@ function SourceBadge({ item }: { item: ChecklistItem }) {
 
 function ReviewStep({
   file,
+  advisor,
   items,
   processingMode,
   onProcessingModeChange,
   disabled,
 }: {
   file: File;
+  advisor: Advisor;
   items: ChecklistItem[];
   processingMode: ProcessingMode;
   onProcessingModeChange: (mode: ProcessingMode) => void;
@@ -356,6 +369,9 @@ function ReviewStep({
       )}
       <p>
         <b>File:</b> {file.name} ({(file.size / (1024 * 1024)).toFixed(1)} MB)
+      </p>
+      <p>
+        <b>Advisor:</b> {advisor.fullName} ({advisor.employeeId}) · {advisor.department}
       </p>
       <p>
         <b>Checklist:</b> {items.length} questions ({items.length - custom} default, {custom}{" "}

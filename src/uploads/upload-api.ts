@@ -13,6 +13,8 @@ export interface FileUploadRequest {
   contentType: string;
   fileSize: number;
   checklist?: ChecklistItem[];
+  /** The advisor (Advisor.id) whose call this is; required by the backend. */
+  advisorId: string;
 }
 
 /** Mirrors the backend's FileUploadResponse record. */

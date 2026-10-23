@@ -12,6 +12,7 @@ export interface UploadResult {
 interface UploadFileVariables {
   file: File;
   checklist: ChecklistItem[];
+  advisorId: string;
   processingMode?: ProcessingMode;
   onProgress?: (fraction: number) => void;
 }
@@ -19,11 +20,12 @@ interface UploadFileVariables {
 async function uploadFile({
   file,
   checklist,
+  advisorId,
   processingMode = "immediate",
   onProgress,
 }: UploadFileVariables): Promise<UploadResult> {
   const presigned = await requestPresignedUploads(
-    [{ fileName: file.name, contentType: file.type, fileSize: file.size, checklist }],
+    [{ fileName: file.name, contentType: file.type, fileSize: file.size, checklist, advisorId }],
     processingMode,
   );
 

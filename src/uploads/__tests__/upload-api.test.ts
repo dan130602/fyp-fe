@@ -67,7 +67,7 @@ describe("requestPresignedUploads", () => {
     );
 
     const result = await requestPresignedUploads([
-      { fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 1024 },
+      { fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 1024, advisorId: "a1" },
     ]);
 
     const [url, init] = vi.mocked(fetch).mock.calls[0];
@@ -75,7 +75,7 @@ describe("requestPresignedUploads", () => {
     const headers = new Headers(init?.headers);
     expect(headers.get("Authorization")).toBe("Bearer the-id-token");
     expect(JSON.parse(init?.body as string)).toEqual({
-      files: [{ fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 1024 }],
+      files: [{ fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 1024, advisorId: "a1" }],
     });
     expect(result.uploads[0].objectKey).toBe("uploads/u1/x-call.mp3");
   });
@@ -85,7 +85,7 @@ describe("requestPresignedUploads", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { uploads: [] }));
 
     await requestPresignedUploads(
-      [{ fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 1024 }],
+      [{ fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 1024, advisorId: "a1" }],
       "batch",
     );
 
@@ -105,7 +105,7 @@ describe("requestPresignedUploads", () => {
 
     await expect(
       requestPresignedUploads([
-        { fileName: "call.txt", contentType: "audio/mpeg", fileSize: 1024 },
+        { fileName: "call.txt", contentType: "audio/mpeg", fileSize: 1024, advisorId: "a1" },
       ]),
     ).rejects.toMatchObject({
       status: 400,
