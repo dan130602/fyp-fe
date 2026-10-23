@@ -280,6 +280,10 @@
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
   gap: 20px;
 }
+/* Transcript 60 / checklist + evaluation 40. */
+.app .review-layout {
+  grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
+}
 .app .panel-title {
   display: flex;
   justify-content: space-between;
