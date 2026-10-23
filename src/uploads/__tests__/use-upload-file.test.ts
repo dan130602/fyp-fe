@@ -41,7 +41,7 @@ describe("useUploadFile", () => {
     const { result } = renderHook(() => useUploadFile(), { wrapper });
     const file = new File(["abc"], "call.mp3", { type: "audio/mpeg" });
 
-    act(() => result.current.mutate({ file, checklist: [] }));
+    act(() => result.current.mutate({ file, checklist: [], advisorId: "a1" }));
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual({
@@ -50,7 +50,15 @@ describe("useUploadFile", () => {
       processingMode: "immediate",
     });
     expect(mockPresign).toHaveBeenCalledWith(
-      [{ fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 3, checklist: [] }],
+      [
+        {
+          fileName: "call.mp3",
+          contentType: "audio/mpeg",
+          fileSize: 3,
+          checklist: [],
+          advisorId: "a1",
+        },
+      ],
       "immediate",
     );
     expect(mockPutToS3).toHaveBeenCalledWith("https://s3.example/x", file, "audio/mpeg", undefined);
@@ -72,7 +80,7 @@ describe("useUploadFile", () => {
     const { result } = renderHook(() => useUploadFile(), { wrapper });
     const file = new File(["abc"], "call.mp3", { type: "audio/mpeg" });
 
-    act(() => result.current.mutate({ file, checklist: [] }));
+    act(() => result.current.mutate({ file, checklist: [], advisorId: "a1" }));
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe("Upload to storage failed with status 403");
@@ -84,7 +92,7 @@ describe("useUploadFile", () => {
     const { result } = renderHook(() => useUploadFile(), { wrapper });
     const file = new File(["abc"], "call.txt", { type: "audio/mpeg" });
 
-    act(() => result.current.mutate({ file, checklist: [] }));
+    act(() => result.current.mutate({ file, checklist: [], advisorId: "a1" }));
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(mockPutToS3).not.toHaveBeenCalled();
@@ -107,11 +115,19 @@ describe("useUploadFile", () => {
     const file = new File(["abc"], "call.mp3", { type: "audio/mpeg" });
     const checklist = [{ id: "K01", question: "Q" }];
 
-    act(() => result.current.mutate({ file, checklist }));
+    act(() => result.current.mutate({ file, checklist, advisorId: "a1" }));
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockPresign).toHaveBeenCalledWith(
-      [{ fileName: "call.mp3", contentType: "audio/mpeg", fileSize: 3, checklist }],
+      [
+        {
+          fileName: "call.mp3",
+          contentType: "audio/mpeg",
+          fileSize: 3,
+          checklist,
+          advisorId: "a1",
+        },
+      ],
       "immediate",
     );
   });
@@ -132,7 +148,9 @@ describe("useUploadFile", () => {
     const { result } = renderHook(() => useUploadFile(), { wrapper });
     const file = new File(["abc"], "call.mp3", { type: "audio/mpeg" });
 
-    act(() => result.current.mutate({ file, checklist: [], processingMode: "batch" }));
+    act(() =>
+      result.current.mutate({ file, checklist: [], advisorId: "a1", processingMode: "batch" }),
+    );
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockPresign.mock.calls[0][1]).toBe("batch");

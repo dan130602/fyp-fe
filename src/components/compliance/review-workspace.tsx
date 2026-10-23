@@ -111,23 +111,23 @@ function RecordingInProgress({
           <TranscriptSkeleton />
         </article>
 
-        <aside className="card padded">
+        <section className="card padded">
           <div className="rule-heading">
             <h2>AI checklist assessment</h2>
           </div>
           <ChecklistSkeleton />
-        </aside>
+        </section>
       </section>
     </>
   );
 }
 
 /**
- * The officer's working screen: the analysed transcript and the AI's answer to
- * each checklist question on the left, the evidence behind the selected answer
- * and the reviewer's own decision on the right.
+ * The officer's working screen: the analysed transcript on the left; on the right,
+ * the AI's answer to each checklist question above the evidence behind the selected
+ * answer and the reviewer's own decision.
  *
- * Everything shown here comes from one AI service response. The two panes are
+ * Everything shown here comes from one AI service response. The transcript and checklist are
  * linked by highlight: hovering a finding lights up the transcript it cited, and
  * hovering a cited passage lights up the finding that cited it.
  *
@@ -403,113 +403,118 @@ function AnalysisWorkspace({
               );
             })}
           </div>
-
-          <div className="rule-heading">
-            <h2>AI checklist assessment</h2>
-            <p>Select an item to inspect its evidence and change the outcome if required.</p>
-          </div>
-          <div className="max-h-[28rem] overflow-y-auto overscroll-contain pr-1">
-            {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => (
-              <button
-                type="button"
-                className={`result finding ${activeId === id ? "selected" : ""} ${hover && highlight.checklistId !== id ? "dim" : ""}`}
-                key={id}
-                onMouseEnter={() => setHover({ checklistId: id })}
-                onMouseLeave={() => setHover(null)}
-                onClick={() => pin(id)}
-              >
-                <i className={verdictTone(verdict)}>{verdictIcon(verdict)}</i>
-                <span>
-                  <b>{question}</b>
-                  <small>{reason}</small>
-                </span>
-                <Badge variant={verdictTone(verdict)}>
-                  {verdict} · {confidence}
-                </Badge>
-              </button>
-            ))}
-          </div>
         </article>
 
-        <aside className="card padded">
-          <Badge variant={verdictTone(active.verdict)}>
-            AI verdict: {active.verdict} · {active.confidence} confidence
-          </Badge>
-          <h3>{active.question}</h3>
-          <p className="subtle">{active.reason}</p>
-
-          <h3>Quoted evidence</h3>
-          <div className="evidence">"{active.evidence_quote}"</div>
-          <span className="timestamp">{active.timestamp ?? active.chunk_id}</span>
-
-          <h3>Cited passages</h3>
-          <div className="actions">
-            {labelSpansByVerdict(active.spans, findings).map((span) => (
-              <button
-                type="button"
-                className={`span-chip ${span.label}`}
-                key={spanKey(span)}
-                onMouseEnter={() =>
-                  setHover({ checklistId: span.checklist_id, spanKey: spanKey(span) })
-                }
-                onMouseLeave={() => setHover(null)}
-              >
-                {span.label} · {span.chunk_id} · {span.start}–{span.end}
-              </button>
-            ))}
-          </div>
-
-          {active.retrieved_evidence.length > 0 && (
-            <>
-              <div className="rule-heading">
-                <h3>Retrieved evidence</h3>
-                <p>Chunks the retriever surfaced for this question, most relevant first.</p>
-              </div>
-              {[...active.retrieved_evidence]
-                .sort((a, b) => b.score - a.score)
-                .map((chunk) => (
-                  <div className="retrieved" key={chunk.chunk_id}>
-                    <div>
-                      <b>{chunk.chunk_id}</b>
-                      <span>{chunk.score.toFixed(4)}</span>
-                    </div>
-                    <small>{chunk.text}</small>
-                  </div>
-                ))}
-            </>
-          )}
-
-          <div className="rule-heading">
-            <h3>Reviewer decision</h3>
-            <div className="actions">
-              <Button
-                variant={decision === "Pass" ? "default" : "outline"}
-                aria-pressed={decision === "Pass"}
-                onClick={() => setDecision("Pass")}
-              >
-                Pass
-              </Button>
-              <Button
-                variant={decision === "Fail" ? "destructive" : "outline"}
-                aria-pressed={decision === "Fail"}
-                onClick={() => setDecision("Fail")}
-              >
-                Confirm fail
-              </Button>
-              <Button
-                variant={decision === "Unclear" ? "default" : "outline"}
-                aria-pressed={decision === "Unclear"}
-                onClick={() => setDecision("Unclear")}
-              >
-                Unclear
-              </Button>
+        {/* Right column: checklist above the selected item's evaluation, beside the transcript. */}
+        <div className="grid content-start gap-5">
+          <section className="card padded">
+            <div className="rule-heading">
+              <h2>AI checklist assessment</h2>
+              <p>Select an item to inspect its evidence and change the outcome if required.</p>
             </div>
-            <textarea placeholder="Add an optional review note…" />
-          </div>
-          <p className="subtle">
-            Your decision, note, and the cited passage become part of the final compliance report.
-          </p>
-        </aside>
+            <div className="max-h-[28rem] overflow-y-auto overscroll-contain pr-1">
+              {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => (
+                <button
+                  type="button"
+                  className={`result finding ${activeId === id ? "selected" : ""} ${hover && highlight.checklistId !== id ? "dim" : ""}`}
+                  key={id}
+                  onMouseEnter={() => setHover({ checklistId: id })}
+                  onMouseLeave={() => setHover(null)}
+                  onClick={() => pin(id)}
+                >
+                  <i className={verdictTone(verdict)}>{verdictIcon(verdict)}</i>
+                  <span>
+                    <b>{question}</b>
+                    <small>{reason}</small>
+                  </span>
+                  <Badge variant={verdictTone(verdict)}>
+                    {verdict} · {confidence}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="card padded">
+            <Badge variant={verdictTone(active.verdict)}>
+              AI verdict: {active.verdict} · {active.confidence} confidence
+            </Badge>
+            <h3>{active.question}</h3>
+            <p className="subtle">{active.reason}</p>
+
+            <h3>Quoted evidence</h3>
+            <div className="evidence">"{active.evidence_quote}"</div>
+            <span className="timestamp">{active.timestamp ?? active.chunk_id}</span>
+
+            <h3>Cited passages</h3>
+            <div className="actions">
+              {labelSpansByVerdict(active.spans, findings).map((span) => (
+                <button
+                  type="button"
+                  className={`span-chip ${span.label}`}
+                  key={spanKey(span)}
+                  onMouseEnter={() =>
+                    setHover({ checklistId: span.checklist_id, spanKey: spanKey(span) })
+                  }
+                  onMouseLeave={() => setHover(null)}
+                >
+                  {span.label} · {span.chunk_id} · {span.start}–{span.end}
+                </button>
+              ))}
+            </div>
+
+            {active.retrieved_evidence.length > 0 && (
+              <>
+                <div className="rule-heading">
+                  <h3>Retrieved evidence</h3>
+                  <p>Chunks the retriever surfaced for this question, most relevant first.</p>
+                </div>
+                {[...active.retrieved_evidence]
+                  .sort((a, b) => b.score - a.score)
+                  .map((chunk) => (
+                    <div className="retrieved" key={chunk.chunk_id}>
+                      <div>
+                        <b>{chunk.chunk_id}</b>
+                        <span>{chunk.score.toFixed(4)}</span>
+                      </div>
+                      <small>{chunk.text}</small>
+                    </div>
+                  ))}
+              </>
+            )}
+
+            <div className="rule-heading">
+              <h3>Reviewer decision</h3>
+              <div className="actions">
+                <Button
+                  variant={decision === "Pass" ? "default" : "outline"}
+                  aria-pressed={decision === "Pass"}
+                  onClick={() => setDecision("Pass")}
+                >
+                  Pass
+                </Button>
+                <Button
+                  variant={decision === "Fail" ? "destructive" : "outline"}
+                  aria-pressed={decision === "Fail"}
+                  onClick={() => setDecision("Fail")}
+                >
+                  Confirm fail
+                </Button>
+                <Button
+                  variant={decision === "Unclear" ? "default" : "outline"}
+                  aria-pressed={decision === "Unclear"}
+                  onClick={() => setDecision("Unclear")}
+                >
+                  Unclear
+                </Button>
+              </div>
+              <textarea placeholder="Add an optional review note…" />
+            </div>
+            <p className="subtle">
+              Your decision, note, and the cited passage become part of the final compliance report.
+            </p>
+          </section>
+        </div>
       </section>
     </>
   );
