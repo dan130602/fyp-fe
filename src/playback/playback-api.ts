@@ -1,3 +1,4 @@
+import type { Advisor } from "../advisors/advisors-api.ts";
 import type { PipelineOutput } from "../data/pipeline-output.ts";
 import { apiGet } from "../lib/api-client.ts";
 import type { ProcessingMode } from "../uploads/upload-api.ts";
@@ -14,6 +15,8 @@ export interface MediaAsset {
   status: MediaAssetStatus;
   processingMode: ProcessingMode;
   createdAt: string;
+  /** Null for recordings uploaded before advisor selection existed. */
+  advisor: Advisor | null;
 }
 
 /** `expiresIn` is seconds, not milliseconds. */

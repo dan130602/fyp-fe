@@ -14,6 +14,7 @@ const asset = (status: Asset["status"], processingMode: Asset["processingMode"])
   status,
   processingMode,
   createdAt: "2026-01-01T00:00:00Z",
+  advisor: null,
 });
 
 describe("listPollInterval", () => {
