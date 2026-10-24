@@ -59,6 +59,7 @@ export function buildOverrides(findings: AiAnswer[], drafts: Drafts): ReviewOver
   return overrides;
 }
 
-export function hasBlankComment(overrides: ReviewOverrideInput[]): boolean {
-  return overrides.some((o) => o.comment === "");
+/** Overridden questions still missing a comment, in findings order, so the first is the next to fix. */
+export function missingCommentIds(overrides: ReviewOverrideInput[]): string[] {
+  return overrides.filter((o) => o.comment === "").map((o) => o.checklistItemId);
 }

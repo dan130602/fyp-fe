@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useAnalysis } from "../../data/calls.ts";
@@ -8,7 +8,7 @@ import { segmentAtTime, segmentTime } from "../../lib/audio.ts";
 import {
   buildOverrides,
   chooseDecision,
-  hasBlankComment,
+  missingCommentIds,
   seedDrafts,
   setComment,
 } from "../../lib/review-drafts.ts";
@@ -287,9 +287,22 @@ function AnalysisWorkspace({
 
   const overrides = useMemo(() => buildOverrides(findings, drafts), [findings, drafts]);
   const overrideIds = new Set(overrides.map((o) => o.checklistItemId));
-  const blankComment = hasBlankComment(overrides);
+  const missing = missingCommentIds(overrides);
+  const missingIds = new Set(missing);
   // Mock analyses have no recording to review against.
   const canSubmit = Boolean(mediaAssetId);
+
+  // Submitting with comments missing jumps to the first one; the alert under the
+  // comment box only shows after that attempt, not while the officer is still typing.
+  const [attempted, setAttempted] = useState(false);
+  const [jump, setJump] = useState(0);
+  const commentBox = useRef<HTMLTextAreaElement>(null);
+  const findingList = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!jump) return;
+    findingList.current?.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
+    commentBox.current?.focus();
+  }, [jump]);
 
   const cited = useMemo(() => labelSpansByVerdict(spans, findings), [spans, findings]);
   const segments = useMemo(() => segmentTranscript(transcript, cited), [transcript, cited]);
@@ -333,7 +346,16 @@ function AnalysisWorkspace({
       comment: o.comment,
     };
   });
-  const missingComments = confirmRows.filter((row) => row.comment === "");
+  const startSubmit = () => {
+    if (missing.length === 0) {
+      setConfirmOpen(true);
+      return;
+    }
+    setAttempted(true);
+    setActiveId(missing[0]);
+    setJump((n) => n + 1);
+  };
+  const othersMissing = missing.filter((id) => id !== active?.checklist_id).length;
   const submitLabel =
     overrides.length === 0
       ? "Approve AI review"
@@ -375,24 +397,17 @@ function AnalysisWorkspace({
           {review && (
             <span className="subtle">Reviewed {new Date(review.reviewedAt).toLocaleString()}</span>
           )}
-          {canSubmit && !blankComment && (
-            <Button onClick={() => setConfirmOpen(true)}>{submitLabel}</Button>
+          {canSubmit && missing.length === 0 && (
+            <Button onClick={startSubmit}>{submitLabel}</Button>
           )}
-          {canSubmit && blankComment && (
+          {canSubmit && missing.length > 0 && (
             <Tooltip>
-              {/* aria-disabled, not disabled: a disabled button gets no hover or focus, so no tooltip. */}
               <TooltipTrigger asChild>
-                <Button aria-disabled className="cursor-not-allowed opacity-50">
-                  {submitLabel}
-                </Button>
+                <Button onClick={startSubmit}>{submitLabel}</Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p>Add a comment to every overridden question before submitting:</p>
-                <ul className="mt-1 list-disc pl-4">
-                  {missingComments.map((row) => (
-                    <li key={row.id}>{row.question}</li>
-                  ))}
-                </ul>
+                {missing.length} overridden question{missing.length === 1 ? "" : "s"} still need
+                {missing.length === 1 ? "s" : ""} a comment. Click to go to the first.
               </TooltipContent>
             </Tooltip>
           )}
@@ -483,7 +498,10 @@ function AnalysisWorkspace({
               <h2>AI checklist assessment</h2>
               <p>Select an item to inspect its evidence and change the outcome if required.</p>
             </div>
-            <div className="max-h-[28rem] overflow-y-auto overscroll-contain pr-1">
+            <div
+              ref={findingList}
+              className="max-h-[28rem] overflow-y-auto overscroll-contain pr-1"
+            >
               {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => {
                 const overridden = overrideIds.has(id);
                 return (
@@ -504,7 +522,10 @@ function AnalysisWorkspace({
                       {verdict} · {confidence}
                     </Badge>
                     {overridden && (
-                      <Badge variant="watch">Overridden → {VERDICTS[drafts[id].decision]}</Badge>
+                      <span className="review-badges">
+                        <Badge variant="watch">Overridden → {VERDICTS[drafts[id].decision]}</Badge>
+                        {missingIds.has(id) && <Badge variant="risk">Comment needed</Badge>}
+                      </span>
                     )}
                   </button>
                 );
@@ -582,6 +603,7 @@ function AnalysisWorkspace({
                 })}
               </div>
               <textarea
+                ref={commentBox}
                 placeholder={
                   activeDraft
                     ? "Explain why you disagree with the AI (required)…"
@@ -591,6 +613,13 @@ function AnalysisWorkspace({
                 disabled={!activeDraft}
                 onChange={(e) => setDrafts(setComment(drafts, active.checklist_id, e.target.value))}
               />
+              {attempted && missingIds.has(active.checklist_id) && (
+                <p role="alert" className="required">
+                  A comment is required for this override.
+                  {othersMissing > 0 &&
+                    ` ${othersMissing} more question${othersMissing === 1 ? "" : "s"} need${othersMissing === 1 ? "s" : ""} one.`}
+                </p>
+              )}
             </div>
             <p className="subtle">
               Questions where your decision differs from the AI, with your comment, are saved when

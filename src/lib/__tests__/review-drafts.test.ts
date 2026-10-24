@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildOverrides,
   chooseDecision,
-  hasBlankComment,
+  missingCommentIds,
   seedDrafts,
   setComment,
 } from "../review-drafts.ts";
@@ -89,10 +89,19 @@ describe("buildOverrides", () => {
   });
 });
 
-describe("hasBlankComment", () => {
+describe("missingCommentIds", () => {
   it("flags a whitespace-only comment once trimmed", () => {
     const overrides = buildOverrides(findings, { K01: { decision: "FAIL", comment: "   " } });
-    expect(hasBlankComment(overrides)).toBe(true);
-    expect(hasBlankComment([])).toBe(false);
+    expect(missingCommentIds(overrides)).toEqual(["K01"]);
+    expect(missingCommentIds([])).toEqual([]);
+  });
+
+  it("lists every uncommented override in findings order, skipping commented ones", () => {
+    const overrides = buildOverrides(findings, {
+      K03: { decision: "PASS", comment: "" },
+      K02: { decision: "PASS", comment: "ok" },
+      K01: { decision: "FAIL", comment: "" },
+    });
+    expect(missingCommentIds(overrides)).toEqual(["K01", "K03"]);
   });
 });
