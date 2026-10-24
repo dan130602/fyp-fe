@@ -35,7 +35,7 @@ export interface ReviewOverride {
   comment: string;
 }
 
-/** `reviewedAt` is an ISO LocalDateTime with no zone. An empty `overrides` means the AI was approved as-is. */
+/** `reviewedAt` is ISO-8601 with an offset. An empty `overrides` means the AI was approved as-is. */
 export interface ChecklistReview {
   reviewedBy: string;
   reviewedAt: string;
