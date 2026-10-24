@@ -120,6 +120,7 @@ describe("submitReview", () => {
       reviewedBy: "u1",
       reviewedAt: "2026-10-24T09:30:00",
       overrides: [{ checklistItemId: "K01", aiVerdict: "PASS", decision: "FAIL", comment: "No" }],
+      history: [],
     };
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, saved));
 

@@ -30,6 +30,7 @@ describe("seedDrafts", () => {
           comment: "ok",
         },
       ],
+      history: [],
     };
     expect(seedDrafts(review)).toEqual({ K02: { decision: "PASS", comment: "ok" } });
   });

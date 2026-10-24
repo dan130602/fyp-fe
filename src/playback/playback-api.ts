@@ -35,11 +35,25 @@ export interface ReviewOverride {
   comment: string;
 }
 
-/** `reviewedAt` is ISO-8601 with an offset. An empty `overrides` means the AI was approved as-is. */
+/** One submitted decision on a question; `decision` null means the officer reverted to the AI verdict. */
+export interface ChecklistDecision {
+  checklistItemId: string;
+  aiVerdict: PipelineStatus;
+  decision: PipelineStatus | null;
+  comment: string | null;
+  decidedBy: string;
+  decidedAt: string;
+}
+
+/**
+ * `reviewedAt` is ISO-8601 with an offset. An empty `overrides` means the AI was approved as-is.
+ * `overrides` is the current state; `history` is every decision ever submitted, oldest first.
+ */
 export interface ChecklistReview {
   reviewedBy: string;
   reviewedAt: string;
   overrides: ReviewOverride[];
+  history: ChecklistDecision[];
 }
 
 /** What the client sends per override; the backend fills in `aiVerdict`. */
