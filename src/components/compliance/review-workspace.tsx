@@ -277,6 +277,8 @@ function AnalysisWorkspace({
   const [activeId, setActiveId] = useState(findings[0]?.checklist_id ?? "");
   const [hover, setHover] = useState<Highlight | null>(null);
   const [drafts, setDrafts] = useState(() => seedDrafts(review));
+  // Saved overrides display read-only until the officer chooses to edit that question.
+  const [editing, setEditing] = useState<Set<string>>(() => new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
   const [duration, setDuration] = useState(NaN);
@@ -364,8 +366,26 @@ function AnalysisWorkspace({
     setConfirmOpen(open);
     if (!open) submit.reset();
   };
-  const confirmSubmit = () => submit.mutate(overrides, { onSuccess: () => setConfirmOpen(false) });
+  // The hook's onSuccess awaits the analysis refetch, so the new review is in place
+  // before everything locks again.
+  const confirmSubmit = () =>
+    submit.mutate(overrides, {
+      onSuccess: () => {
+        setConfirmOpen(false);
+        setEditing(new Set());
+      },
+    });
   const activeDraft = drafts[active?.checklist_id ?? ""];
+  const saved = seedDrafts(review);
+  const activeSaved = saved[active?.checklist_id ?? ""];
+  const locked = Boolean(activeSaved) && !editing.has(active?.checklist_id ?? "");
+  const startEdit = (id: string) => setEditing(new Set(editing).add(id));
+  const cancelEdit = (id: string) => {
+    setDrafts({ ...drafts, [id]: saved[id] });
+    const next = new Set(editing);
+    next.delete(id);
+    setEditing(next);
+  };
   const context = [
     report.business_area,
     report.risk_level && `${report.risk_level} risk`,
@@ -384,18 +404,24 @@ function AnalysisWorkspace({
     <>
       <section className="heading">
         <div>
-          <Button variant="ghost" size="xs" className="mb-2 self-start" onClick={onBack}>
-            ← Review queue
+          <Button variant="outline" size="sm" className="mb-2 self-start" onClick={onBack}>
+            ← Back to queue
           </Button>
           <h1>{title}</h1>
           <p>Validate AI-generated checklist answers against the passages they were drawn from.</p>
         </div>
         <div className="actions">
-          <Button variant="outline" onClick={onBack}>
-            Back to queue
-          </Button>
           {review && (
-            <span className="subtle">Reviewed {new Date(review.reviewedAt).toLocaleString()}</span>
+            <Badge variant="good">
+              Reviewed ·{" "}
+              {new Date(review.reviewedAt).toLocaleString(undefined, {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Badge>
           )}
           {canSubmit && missing.length === 0 && (
             <Button onClick={startSubmit}>{submitLabel}</Button>
@@ -583,42 +609,74 @@ function AnalysisWorkspace({
 
             <div className="rule-heading">
               <h3>Reviewer decision</h3>
-              <div className="actions">
-                {DECISIONS.map(({ status, label }) => {
-                  const chosen = (activeDraft?.decision ?? active.status) === status;
-                  return (
+              {locked ? (
+                <>
+                  <div className="actions">
+                    <Badge variant="watch">Overridden → {VERDICTS[activeSaved.decision]}</Badge>
                     <Button
-                      key={status}
-                      variant={chosen ? (status === "FAIL" ? "destructive" : "default") : "outline"}
-                      aria-pressed={chosen}
-                      onClick={() =>
-                        setDrafts(
-                          chooseDecision(drafts, active.checklist_id, active.status, status),
-                        )
-                      }
+                      variant="outline"
+                      size="sm"
+                      onClick={() => startEdit(active.checklist_id)}
                     >
-                      {label}
+                      Edit decision
                     </Button>
-                  );
-                })}
-              </div>
-              <textarea
-                ref={commentBox}
-                placeholder={
-                  activeDraft
-                    ? "Explain why you disagree with the AI (required)…"
-                    : "Choose a different decision to add a comment…"
-                }
-                value={activeDraft?.comment ?? ""}
-                disabled={!activeDraft}
-                onChange={(e) => setDrafts(setComment(drafts, active.checklist_id, e.target.value))}
-              />
-              {attempted && missingIds.has(active.checklist_id) && (
-                <p role="alert" className="required">
-                  A comment is required for this override.
-                  {othersMissing > 0 &&
-                    ` ${othersMissing} more question${othersMissing === 1 ? "" : "s"} need${othersMissing === 1 ? "s" : ""} one.`}
-                </p>
+                  </div>
+                  <div className="evidence mt-2">{activeSaved.comment}</div>
+                </>
+              ) : (
+                <>
+                  <div className="actions">
+                    {DECISIONS.map(({ status, label }) => {
+                      const chosen = (activeDraft?.decision ?? active.status) === status;
+                      return (
+                        <Button
+                          key={status}
+                          variant={
+                            chosen ? (status === "FAIL" ? "destructive" : "default") : "outline"
+                          }
+                          aria-pressed={chosen}
+                          onClick={() =>
+                            setDrafts(
+                              chooseDecision(drafts, active.checklist_id, active.status, status),
+                            )
+                          }
+                        >
+                          {label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <textarea
+                    ref={commentBox}
+                    placeholder={
+                      activeDraft
+                        ? "Explain why you disagree with the AI (required)…"
+                        : "Choose a different decision to add a comment…"
+                    }
+                    value={activeDraft?.comment ?? ""}
+                    disabled={!activeDraft}
+                    onChange={(e) =>
+                      setDrafts(setComment(drafts, active.checklist_id, e.target.value))
+                    }
+                  />
+                  {attempted && missingIds.has(active.checklist_id) && (
+                    <p role="alert" className="required">
+                      A comment is required for this override.
+                      {othersMissing > 0 &&
+                        ` ${othersMissing} more question${othersMissing === 1 ? "" : "s"} need${othersMissing === 1 ? "s" : ""} one.`}
+                    </p>
+                  )}
+                  {activeSaved && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => cancelEdit(active.checklist_id)}
+                    >
+                      Cancel edit
+                    </Button>
+                  )}
+                </>
               )}
             </div>
             <p className="subtle">
