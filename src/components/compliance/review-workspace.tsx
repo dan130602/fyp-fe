@@ -28,6 +28,7 @@ import {
   useSubmitReview,
 } from "../../playback/use-playback-url.ts";
 import { Skeleton } from "../ui/skeleton.tsx";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip.tsx";
 import AudioPlayer from "./audio-player.tsx";
 import ReviewConfirmDialog from "./review-confirm-dialog.tsx";
 
@@ -332,6 +333,11 @@ function AnalysisWorkspace({
       comment: o.comment,
     };
   });
+  const missingComments = confirmRows.filter((row) => row.comment === "");
+  const submitLabel =
+    overrides.length === 0
+      ? "Approve AI review"
+      : `Submit review · ${overrides.length} override${overrides.length === 1 ? "" : "s"}`;
   const closeConfirm = (open: boolean) => {
     setConfirmOpen(open);
     if (!open) submit.reset();
@@ -369,12 +375,26 @@ function AnalysisWorkspace({
           {review && (
             <span className="subtle">Reviewed {new Date(review.reviewedAt).toLocaleString()}</span>
           )}
-          {canSubmit && (
-            <Button disabled={blankComment} onClick={() => setConfirmOpen(true)}>
-              {overrides.length === 0
-                ? "Approve AI review"
-                : `Submit review · ${overrides.length} override${overrides.length === 1 ? "" : "s"}`}
-            </Button>
+          {canSubmit && !blankComment && (
+            <Button onClick={() => setConfirmOpen(true)}>{submitLabel}</Button>
+          )}
+          {canSubmit && blankComment && (
+            <Tooltip>
+              {/* aria-disabled, not disabled: a disabled button gets no hover or focus, so no tooltip. */}
+              <TooltipTrigger asChild>
+                <Button aria-disabled className="cursor-not-allowed opacity-50">
+                  {submitLabel}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Add a comment to every overridden question before submitting:</p>
+                <ul className="mt-1 list-disc pl-4">
+                  {missingComments.map((row) => (
+                    <li key={row.id}>{row.question}</li>
+                  ))}
+                </ul>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </section>
