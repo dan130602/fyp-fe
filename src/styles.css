@@ -37,6 +37,8 @@
   --color-amber-soft: var(--amber-soft);
   --color-red: var(--red);
   --color-red-soft: var(--red-soft);
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
 
   /* shadcn's expected token names, mapped onto the existing palette so
      components/ui/* (Skeleton) render with the app's look, not shadcn's
@@ -95,6 +97,8 @@
   --amber-soft: #fff2d9;
   --red: #c53d50;
   --red-soft: #ffedf0;
+  --violet: #6d4bd1;
+  --violet-soft: #f1ecff;
   --shadow: 0 10px 28px rgba(29, 52, 78, 0.07);
 
   /* developer view palette */
