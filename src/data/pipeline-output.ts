@@ -48,7 +48,7 @@ export interface PipelineOutput {
   };
 }
 
-const VERDICTS: Record<PipelineStatus, string> = {
+export const VERDICTS: Record<PipelineStatus, string> = {
   PASS: "Pass",
   FAIL: "Fail",
   PARTIAL: "Partial",
