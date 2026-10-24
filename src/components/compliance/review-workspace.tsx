@@ -2,8 +2,16 @@ import { useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useAnalysis } from "../../data/calls.ts";
-import { toAnalysisView } from "../../data/pipeline-output.ts";
+import type { PipelineStatus } from "../../data/pipeline-output.ts";
+import { toAnalysisView, VERDICTS } from "../../data/pipeline-output.ts";
 import { segmentAtTime, segmentTime } from "../../lib/audio.ts";
+import {
+  buildOverrides,
+  chooseDecision,
+  hasBlankComment,
+  seedDrafts,
+  setComment,
+} from "../../lib/review-drafts.ts";
 import type { Segment, Span } from "../../lib/transcript.ts";
 import {
   labelSpansByVerdict,
@@ -12,13 +20,16 @@ import {
   verdictIcon,
   verdictTone,
 } from "../../lib/transcript.ts";
+import type { ChecklistReview } from "../../playback/playback-api.ts";
 import {
   useIsBatchAsset,
   useMediaAssetAnalysis,
   usePlaybackUrl,
+  useSubmitReview,
 } from "../../playback/use-playback-url.ts";
 import { Skeleton } from "../ui/skeleton.tsx";
 import AudioPlayer from "./audio-player.tsx";
+import ReviewConfirmDialog from "./review-confirm-dialog.tsx";
 
 /** Stable identity for one cited span, so a single span can be highlighted alone. */
 const spanKey = (span: Span) => `${span.checklist_id}:${span.start}:${span.end}`;
@@ -57,6 +68,13 @@ function ChecklistSkeleton() {
     </>
   );
 }
+
+/** Reviewer buttons, in the pipeline vocabulary the backend stores. */
+const DECISIONS: { status: PipelineStatus; label: string }[] = [
+  { status: "PASS", label: "Pass" },
+  { status: "FAIL", label: "Fail" },
+  { status: "CANNOT_DETERMINE", label: "Unclear" },
+];
 
 type AnalysisView = NonNullable<ReturnType<typeof useAnalysis>>;
 
@@ -222,6 +240,7 @@ function RecordingWorkspace({
       <AnalysisWorkspace
         analysis={toAnalysisView(data.result, data.fileName)}
         mediaAssetId={mediaAssetId}
+        review={data.review}
         onBack={onBack}
       />
     );
@@ -235,10 +254,12 @@ function AnalysisWorkspace({
   analysis,
   onBack,
   mediaAssetId,
+  review,
 }: {
   analysis: AnalysisView | null;
   onBack: () => void;
   mediaAssetId?: string;
+  review?: ChecklistReview | null;
 }) {
   // useAnalysis returns null only when the analyses corpus is empty (see
   // report: NEW GUARD). Every hook below must still run unconditionally, so
@@ -254,12 +275,20 @@ function AnalysisWorkspace({
   };
   const [activeId, setActiveId] = useState(findings[0]?.checklist_id ?? "");
   const [hover, setHover] = useState<Highlight | null>(null);
-  const [decision, setDecision] = useState("");
+  const [drafts, setDrafts] = useState(() => seedDrafts(review));
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
   const [duration, setDuration] = useState(NaN);
   const [playhead, setPlayhead] = useState(0);
   const isBatch = useIsBatchAsset(mediaAssetId);
   const { data: playback } = usePlaybackUrl(isBatch ? undefined : mediaAssetId);
+  const submit = useSubmitReview(mediaAssetId ?? "");
+
+  const overrides = useMemo(() => buildOverrides(findings, drafts), [findings, drafts]);
+  const overrideIds = new Set(overrides.map((o) => o.checklistItemId));
+  const blankComment = hasBlankComment(overrides);
+  // Mock analyses have no recording to review against.
+  const canSubmit = Boolean(mediaAssetId);
 
   const cited = useMemo(() => labelSpansByVerdict(spans, findings), [spans, findings]);
   const segments = useMemo(() => segmentTranscript(transcript, cited), [transcript, cited]);
@@ -292,10 +321,23 @@ function AnalysisWorkspace({
         : span.checklist_id === highlight.checklistId,
     );
 
-  const pin = (id: string) => {
-    setActiveId(id);
-    setDecision("");
+  const pin = (id: string) => setActiveId(id);
+  const confirmRows = overrides.map((o) => {
+    const finding = findings.find((f) => f.checklist_id === o.checklistItemId);
+    return {
+      id: o.checklistItemId,
+      question: finding?.question ?? o.checklistItemId,
+      aiVerdict: finding?.status,
+      decision: o.decision,
+      comment: o.comment,
+    };
+  });
+  const closeConfirm = (open: boolean) => {
+    setConfirmOpen(open);
+    if (!open) submit.reset();
   };
+  const confirmSubmit = () => submit.mutate(overrides, { onSuccess: () => setConfirmOpen(false) });
+  const activeDraft = drafts[active?.checklist_id ?? ""];
   const context = [
     report.business_area,
     report.risk_level && `${report.risk_level} risk`,
@@ -324,7 +366,16 @@ function AnalysisWorkspace({
           <Button variant="outline" onClick={onBack}>
             Back to queue
           </Button>
-          <Button>Approve current review</Button>
+          {review && (
+            <span className="subtle">Reviewed {new Date(review.reviewedAt).toLocaleString()}</span>
+          )}
+          {canSubmit && (
+            <Button disabled={blankComment} onClick={() => setConfirmOpen(true)}>
+              {overrides.length === 0
+                ? "Approve AI review"
+                : `Submit review · ${overrides.length} override${overrides.length === 1 ? "" : "s"}`}
+            </Button>
+          )}
         </div>
       </section>
 
@@ -413,25 +464,31 @@ function AnalysisWorkspace({
               <p>Select an item to inspect its evidence and change the outcome if required.</p>
             </div>
             <div className="max-h-[28rem] overflow-y-auto overscroll-contain pr-1">
-              {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => (
-                <button
-                  type="button"
-                  className={`result finding ${activeId === id ? "selected" : ""} ${hover && highlight.checklistId !== id ? "dim" : ""}`}
-                  key={id}
-                  onMouseEnter={() => setHover({ checklistId: id })}
-                  onMouseLeave={() => setHover(null)}
-                  onClick={() => pin(id)}
-                >
-                  <i className={verdictTone(verdict)}>{verdictIcon(verdict)}</i>
-                  <span>
-                    <b>{question}</b>
-                    <small>{reason}</small>
-                  </span>
-                  <Badge variant={verdictTone(verdict)}>
-                    {verdict} · {confidence}
-                  </Badge>
-                </button>
-              ))}
+              {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => {
+                const overridden = overrideIds.has(id);
+                return (
+                  <button
+                    type="button"
+                    className={`result finding ${activeId === id ? "selected" : ""} ${hover && highlight.checklistId !== id ? "dim" : ""}`}
+                    key={id}
+                    onMouseEnter={() => setHover({ checklistId: id })}
+                    onMouseLeave={() => setHover(null)}
+                    onClick={() => pin(id)}
+                  >
+                    <i className={verdictTone(verdict)}>{verdictIcon(verdict)}</i>
+                    <span>
+                      <b>{question}</b>
+                      <small>{reason}</small>
+                    </span>
+                    <Badge variant={verdictTone(verdict)}>
+                      {verdict} · {confidence}
+                    </Badge>
+                    {overridden && (
+                      <Badge variant="watch">Overridden → {VERDICTS[drafts[id].decision]}</Badge>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
 
@@ -486,36 +543,51 @@ function AnalysisWorkspace({
             <div className="rule-heading">
               <h3>Reviewer decision</h3>
               <div className="actions">
-                <Button
-                  variant={decision === "Pass" ? "default" : "outline"}
-                  aria-pressed={decision === "Pass"}
-                  onClick={() => setDecision("Pass")}
-                >
-                  Pass
-                </Button>
-                <Button
-                  variant={decision === "Fail" ? "destructive" : "outline"}
-                  aria-pressed={decision === "Fail"}
-                  onClick={() => setDecision("Fail")}
-                >
-                  Confirm fail
-                </Button>
-                <Button
-                  variant={decision === "Unclear" ? "default" : "outline"}
-                  aria-pressed={decision === "Unclear"}
-                  onClick={() => setDecision("Unclear")}
-                >
-                  Unclear
-                </Button>
+                {DECISIONS.map(({ status, label }) => {
+                  const chosen = (activeDraft?.decision ?? active.status) === status;
+                  return (
+                    <Button
+                      key={status}
+                      variant={chosen ? (status === "FAIL" ? "destructive" : "default") : "outline"}
+                      aria-pressed={chosen}
+                      onClick={() =>
+                        setDrafts(
+                          chooseDecision(drafts, active.checklist_id, active.status, status),
+                        )
+                      }
+                    >
+                      {label}
+                    </Button>
+                  );
+                })}
               </div>
-              <textarea placeholder="Add an optional review note…" />
+              <textarea
+                placeholder={
+                  activeDraft
+                    ? "Explain why you disagree with the AI (required)…"
+                    : "Choose a different decision to add a comment…"
+                }
+                value={activeDraft?.comment ?? ""}
+                disabled={!activeDraft}
+                onChange={(e) => setDrafts(setComment(drafts, active.checklist_id, e.target.value))}
+              />
             </div>
             <p className="subtle">
-              Your decision, note, and the cited passage become part of the final compliance report.
+              Questions where your decision differs from the AI, with your comment, are saved when
+              you submit the review.
             </p>
           </section>
         </div>
       </section>
+
+      <ReviewConfirmDialog
+        open={confirmOpen}
+        onOpenChange={closeConfirm}
+        overrides={confirmRows}
+        pending={submit.isPending}
+        error={submit.error?.message ?? null}
+        onConfirm={confirmSubmit}
+      />
     </>
   );
 }
