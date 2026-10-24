@@ -22,6 +22,7 @@ const badgeVariants = cva(
         pass: "bg-green-soft text-green",
         watch: "bg-amber-soft text-amber",
         risk: "bg-red-soft text-red",
+        override: "bg-violet-soft text-violet",
         info: "bg-blue-soft text-[#466db8]",
       },
     },

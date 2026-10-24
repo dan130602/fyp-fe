@@ -9,6 +9,7 @@
 
 import type { Tone } from "../components/ui/badge.tsx";
 import type { Span, Verdict } from "../lib/transcript.ts";
+import type { PipelineStatus } from "./pipeline-output.ts";
 
 export interface Chunk {
   chunk_id: string;
@@ -30,6 +31,8 @@ export interface Finding {
   checklist_id: string;
   question: string;
   verdict: Verdict;
+  /** The AI service's raw status; absent on the mock analyses. */
+  status?: PipelineStatus;
   reason: string;
   confidence: string;
   spans: Span[];

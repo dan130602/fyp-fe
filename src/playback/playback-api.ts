@@ -1,6 +1,6 @@
 import type { Advisor } from "../advisors/advisors-api.ts";
-import type { PipelineOutput } from "../data/pipeline-output.ts";
-import { apiGet } from "../lib/api-client.ts";
+import type { PipelineOutput, PipelineStatus } from "../data/pipeline-output.ts";
+import { apiGet, apiPut } from "../lib/api-client.ts";
 import type { ProcessingMode } from "../uploads/upload-api.ts";
 
 // QUEUED and PROCESSING only occur for batch assets.
@@ -27,6 +27,38 @@ export interface PlaybackUrl {
 
 export type AnalysisStatus = "PENDING" | "READY" | "FAILED";
 
+/** One question where the officer's decision differs from the AI's; `aiVerdict` is a server-side snapshot. */
+export interface ReviewOverride {
+  checklistItemId: string;
+  aiVerdict: PipelineStatus;
+  decision: PipelineStatus;
+  comment: string;
+}
+
+/** One submitted decision on a question; `decision` null means the officer reverted to the AI verdict. */
+export interface ChecklistDecision {
+  checklistItemId: string;
+  aiVerdict: PipelineStatus;
+  decision: PipelineStatus | null;
+  comment: string | null;
+  decidedBy: string;
+  decidedAt: string;
+}
+
+/**
+ * `reviewedAt` is ISO-8601 with an offset. An empty `overrides` means the AI was approved as-is.
+ * `overrides` is the current state; `history` is every decision ever submitted, oldest first.
+ */
+export interface ChecklistReview {
+  reviewedBy: string;
+  reviewedAt: string;
+  overrides: ReviewOverride[];
+  history: ChecklistDecision[];
+}
+
+/** What the client sends per override; the backend fills in `aiVerdict`. */
+export type ReviewOverrideInput = Pick<ReviewOverride, "checklistItemId" | "decision" | "comment">;
+
 /** Mirrors the backend's MediaAssetAnalysisResponse; `result` is null unless `analysisStatus` is READY. */
 export interface MediaAssetAnalysis {
   mediaAssetId: string;
@@ -35,6 +67,8 @@ export interface MediaAssetAnalysis {
   analysisStatus: AnalysisStatus;
   failureReason: string | null;
   result: PipelineOutput | null;
+  /** Null until an officer submits a review. */
+  review: ChecklistReview | null;
 }
 
 export function listMediaAssets(): Promise<MediaAsset[]> {
@@ -47,4 +81,11 @@ export function getPlaybackUrl(id: string): Promise<PlaybackUrl> {
 
 export function getMediaAssetAnalysis(id: string): Promise<MediaAssetAnalysis> {
   return apiGet<MediaAssetAnalysis>(`/api/media-assets/${id}/analysis`);
+}
+
+export function submitReview(
+  id: string,
+  overrides: ReviewOverrideInput[],
+): Promise<ChecklistReview> {
+  return apiPut<ChecklistReview>(`/api/media-assets/${id}/review`, { overrides });
 }

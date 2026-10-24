@@ -48,7 +48,7 @@ export interface PipelineOutput {
   };
 }
 
-const VERDICTS: Record<PipelineStatus, string> = {
+export const VERDICTS: Record<PipelineStatus, string> = {
   PASS: "Pass",
   FAIL: "Fail",
   PARTIAL: "Partial",
@@ -103,6 +103,7 @@ export function toAnalysisView(output: PipelineOutput, title: string) {
       checklist_id: result.item_id,
       question: questions.get(result.item_id) ?? result.item_id,
       verdict: VERDICTS[result.status] ?? result.status,
+      status: result.status,
       reason: result.reasoning ?? "",
       confidence: `${Math.round(result.confidence * 100)}%`,
       spans,

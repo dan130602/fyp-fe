@@ -87,6 +87,10 @@ describe("toAnalysisView", () => {
     expect(view.findings[1].evidence_quote).toBe("");
   });
 
+  it("keeps the raw pipeline status beside the verdict", () => {
+    expect(view.findings.map((f) => f.status)).toEqual(output.final_results?.map((r) => r.status));
+  });
+
   it("maps statuses to verdicts", () => {
     expect(view.findings.map((f) => f.verdict)).toEqual([
       "Pass",

@@ -1,9 +1,19 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { useAnalysis } from "../../data/calls.ts";
-import { toAnalysisView } from "../../data/pipeline-output.ts";
+import type { PipelineStatus } from "../../data/pipeline-output.ts";
+import { toAnalysisView, VERDICTS } from "../../data/pipeline-output.ts";
 import { segmentAtTime, segmentTime } from "../../lib/audio.ts";
+import { formatReviewTime, type HistoryEntry, historyFor } from "../../lib/decision-history.ts";
+import {
+  buildOverrides,
+  chooseDecision,
+  missingCommentIds,
+  pendingChangeCount,
+  seedDrafts,
+  setComment,
+} from "../../lib/review-drafts.ts";
 import type { Segment, Span } from "../../lib/transcript.ts";
 import {
   labelSpansByVerdict,
@@ -12,13 +22,18 @@ import {
   verdictIcon,
   verdictTone,
 } from "../../lib/transcript.ts";
+import type { ChecklistReview } from "../../playback/playback-api.ts";
 import {
   useIsBatchAsset,
   useMediaAssetAnalysis,
   usePlaybackUrl,
+  useSubmitReview,
 } from "../../playback/use-playback-url.ts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip.tsx";
 import AudioPlayer from "./audio-player.tsx";
+import ReviewConfirmDialog from "./review-confirm-dialog.tsx";
 
 /** Stable identity for one cited span, so a single span can be highlighted alone. */
 const spanKey = (span: Span) => `${span.checklist_id}:${span.start}:${span.end}`;
@@ -29,6 +44,27 @@ const MEDIA_ID_PREFIX = "media:";
 /** Varying widths so the placeholder reads as text, not a grid of identical bars. */
 const TRANSCRIPT_LINE_WIDTHS = ["94%", "88%", "97%", "62%", "91%", "80%", "95%", "70%"];
 const CHECKLIST_ROW_WIDTHS = ["82%", "68%", "90%", "75%"];
+
+/** Collapsed by default; hidden when the question has never been decided. */
+function DecisionHistory({ entries }: { entries: HistoryEntry[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <details className="decision-history">
+      <summary>History ({entries.length})</summary>
+      {entries.map((entry) => (
+        <div key={entry.decidedAt} className="entry">
+          <time dateTime={entry.decidedAt}>{formatReviewTime(entry.decidedAt)}</time>
+          <b>
+            {entry.reverted
+              ? `Reverted to AI verdict (${VERDICTS[entry.to]})`
+              : `${VERDICTS[entry.from]} → ${VERDICTS[entry.to]}`}
+          </b>
+          {entry.comment && <div className="evidence">{entry.comment}</div>}
+        </div>
+      ))}
+    </details>
+  );
+}
 
 /** Placeholder lines shaped like the transcript pane, so layout does not jump on load. */
 function TranscriptSkeleton() {
@@ -57,6 +93,13 @@ function ChecklistSkeleton() {
     </>
   );
 }
+
+/** Reviewer buttons, in the pipeline vocabulary the backend stores. */
+const DECISIONS: { status: PipelineStatus; label: string }[] = [
+  { status: "PASS", label: "Pass" },
+  { status: "FAIL", label: "Fail" },
+  { status: "CANNOT_DETERMINE", label: "Unclear" },
+];
 
 type AnalysisView = NonNullable<ReturnType<typeof useAnalysis>>;
 
@@ -222,6 +265,7 @@ function RecordingWorkspace({
       <AnalysisWorkspace
         analysis={toAnalysisView(data.result, data.fileName)}
         mediaAssetId={mediaAssetId}
+        review={data.review}
         onBack={onBack}
       />
     );
@@ -235,10 +279,12 @@ function AnalysisWorkspace({
   analysis,
   onBack,
   mediaAssetId,
+  review,
 }: {
   analysis: AnalysisView | null;
   onBack: () => void;
   mediaAssetId?: string;
+  review?: ChecklistReview | null;
 }) {
   // useAnalysis returns null only when the analyses corpus is empty (see
   // report: NEW GUARD). Every hook below must still run unconditionally, so
@@ -254,12 +300,35 @@ function AnalysisWorkspace({
   };
   const [activeId, setActiveId] = useState(findings[0]?.checklist_id ?? "");
   const [hover, setHover] = useState<Highlight | null>(null);
-  const [decision, setDecision] = useState("");
+  const [drafts, setDrafts] = useState(() => seedDrafts(review));
+  // Saved overrides display read-only until the officer chooses to edit that question.
+  const [editing, setEditing] = useState<Set<string>>(() => new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const audio = useRef<HTMLAudioElement>(null);
   const [duration, setDuration] = useState(NaN);
   const [playhead, setPlayhead] = useState(0);
   const isBatch = useIsBatchAsset(mediaAssetId);
   const { data: playback } = usePlaybackUrl(isBatch ? undefined : mediaAssetId);
+  const submit = useSubmitReview(mediaAssetId ?? "");
+
+  const overrides = useMemo(() => buildOverrides(findings, drafts), [findings, drafts]);
+  const overrideIds = new Set(overrides.map((o) => o.checklistItemId));
+  const missing = missingCommentIds(overrides);
+  const missingIds = new Set(missing);
+  // Mock analyses have no recording to review against.
+  const canSubmit = Boolean(mediaAssetId);
+
+  // Submitting with comments missing jumps to the first one; the alert under the
+  // comment box only shows after that attempt, not while the officer is still typing.
+  const [attempted, setAttempted] = useState(false);
+  const [jump, setJump] = useState(0);
+  const commentBox = useRef<HTMLTextAreaElement>(null);
+  const findingList = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!jump) return;
+    findingList.current?.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
+    commentBox.current?.focus();
+  }, [jump]);
 
   const cited = useMemo(() => labelSpansByVerdict(spans, findings), [spans, findings]);
   const segments = useMemo(() => segmentTranscript(transcript, cited), [transcript, cited]);
@@ -292,9 +361,58 @@ function AnalysisWorkspace({
         : span.checklist_id === highlight.checklistId,
     );
 
-  const pin = (id: string) => {
-    setActiveId(id);
-    setDecision("");
+  const pin = (id: string) => setActiveId(id);
+  const confirmRows = overrides.map((o) => {
+    const finding = findings.find((f) => f.checklist_id === o.checklistItemId);
+    return {
+      id: o.checklistItemId,
+      question: finding?.question ?? o.checklistItemId,
+      aiVerdict: finding?.status,
+      decision: o.decision,
+      comment: o.comment,
+    };
+  });
+  const startSubmit = () => {
+    if (missing.length === 0) {
+      setConfirmOpen(true);
+      return;
+    }
+    setAttempted(true);
+    setActiveId(missing[0]);
+    setJump((n) => n + 1);
+  };
+  const othersMissing = missing.filter((id) => id !== active?.checklist_id).length;
+  const pending = pendingChangeCount(overrides, review);
+  const submitted = Boolean(review) && pending === 0;
+  const submitLabel = review
+    ? `Submit changes · ${pending}`
+    : overrides.length === 0
+      ? "Approve AI review"
+      : `Submit review · ${overrides.length} override${overrides.length === 1 ? "" : "s"}`;
+  const closeConfirm = (open: boolean) => {
+    setConfirmOpen(open);
+    if (!open) submit.reset();
+  };
+  // The hook's onSuccess awaits the analysis refetch, so the new review is in place
+  // before everything locks again.
+  const confirmSubmit = () =>
+    submit.mutate(overrides, {
+      onSuccess: () => {
+        setConfirmOpen(false);
+        setEditing(new Set());
+      },
+    });
+  const activeDraft = drafts[active?.checklist_id ?? ""];
+  const saved = seedDrafts(review);
+  const activeSaved = saved[active?.checklist_id ?? ""];
+  const history = historyFor(review, active?.checklist_id ?? "");
+  const locked = Boolean(activeSaved) && !editing.has(active?.checklist_id ?? "");
+  const startEdit = (id: string) => setEditing(new Set(editing).add(id));
+  const cancelEdit = (id: string) => {
+    setDrafts({ ...drafts, [id]: saved[id] });
+    const next = new Set(editing);
+    next.delete(id);
+    setEditing(next);
   };
   const context = [
     report.business_area,
@@ -314,17 +432,46 @@ function AnalysisWorkspace({
     <>
       <section className="heading">
         <div>
-          <Button variant="ghost" size="xs" className="mb-2 self-start" onClick={onBack}>
-            ← Review queue
+          <Button variant="outline" size="sm" className="mb-2 self-start" onClick={onBack}>
+            ← Back to queue
           </Button>
           <h1>{title}</h1>
           <p>Validate AI-generated checklist answers against the passages they were drawn from.</p>
         </div>
         <div className="actions">
-          <Button variant="outline" onClick={onBack}>
-            Back to queue
-          </Button>
-          <Button>Approve current review</Button>
+          {review && (
+            <Badge variant="good" className="px-2.5 py-1 text-xs">
+              Reviewed · {formatReviewTime(review.reviewedAt)}
+            </Badge>
+          )}
+          {canSubmit && submitted && (
+            <Tooltip>
+              {/* aria-disabled, not disabled: a disabled button gets no hover or focus, so no tooltip. */}
+              <TooltipTrigger asChild>
+                <Button aria-disabled className="cursor-not-allowed opacity-50">
+                  Review submitted
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                You can still change a decision: select a question, click Edit, then submit your
+                changes.
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {canSubmit && !submitted && missing.length === 0 && (
+            <Button onClick={startSubmit}>{submitLabel}</Button>
+          )}
+          {canSubmit && !submitted && missing.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={startSubmit}>{submitLabel}</Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {missing.length} overridden question{missing.length === 1 ? "" : "s"} still need
+                {missing.length === 1 ? "s" : ""} a comment. Click to go to the first.
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </section>
 
@@ -408,114 +555,142 @@ function AnalysisWorkspace({
         {/* Right column: checklist above the selected item's evaluation, beside the transcript. */}
         <div className="grid content-start gap-5">
           <section className="card padded">
-            <div className="rule-heading">
+            <div className="rule-heading flush">
               <h2>AI checklist assessment</h2>
-              <p>Select an item to inspect its evidence and change the outcome if required.</p>
+              <p>
+                Select a question to review it. Overrides need a comment and are saved when you
+                submit.
+              </p>
             </div>
-            <div className="max-h-[28rem] overflow-y-auto overscroll-contain pr-1">
-              {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => (
-                <button
-                  type="button"
-                  className={`result finding ${activeId === id ? "selected" : ""} ${hover && highlight.checklistId !== id ? "dim" : ""}`}
-                  key={id}
-                  onMouseEnter={() => setHover({ checklistId: id })}
-                  onMouseLeave={() => setHover(null)}
-                  onClick={() => pin(id)}
-                >
-                  <i className={verdictTone(verdict)}>{verdictIcon(verdict)}</i>
-                  <span>
-                    <b>{question}</b>
-                    <small>{reason}</small>
-                  </span>
-                  <Badge variant={verdictTone(verdict)}>
-                    {verdict} · {confidence}
-                  </Badge>
-                </button>
-              ))}
+            <div
+              ref={findingList}
+              className="max-h-[36rem] overflow-y-auto overscroll-contain pr-1"
+            >
+              {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => {
+                const overridden = overrideIds.has(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`result finding ${activeId === id ? "selected" : ""} ${hover && highlight.checklistId !== id ? "dim" : ""}`}
+                    onMouseEnter={() => setHover({ checklistId: id })}
+                    onMouseLeave={() => setHover(null)}
+                    onClick={() => pin(id)}
+                  >
+                    <i className={verdictTone(verdict)}>{verdictIcon(verdict)}</i>
+                    <span>
+                      <b>{question}</b>
+                      <small>{reason}</small>
+                    </span>
+                    <Badge variant={verdictTone(verdict)}>
+                      {verdict} · {confidence}
+                    </Badge>
+                    {overridden && (
+                      <span className="review-badges">
+                        <Badge variant="override">
+                          Overridden → {VERDICTS[drafts[id].decision]}
+                        </Badge>
+                        {missingIds.has(id) && <Badge variant="risk">Comment needed</Badge>}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </section>
-
-          <section className="card padded">
-            <Badge variant={verdictTone(active.verdict)}>
-              AI verdict: {active.verdict} · {active.confidence} confidence
-            </Badge>
-            <h3>{active.question}</h3>
-            <p className="subtle">{active.reason}</p>
-
-            <h3>Quoted evidence</h3>
-            <div className="evidence">"{active.evidence_quote}"</div>
-            <span className="timestamp">{active.timestamp ?? active.chunk_id}</span>
-
-            <h3>Cited passages</h3>
-            <div className="actions">
-              {labelSpansByVerdict(active.spans, findings).map((span) => (
-                <button
-                  type="button"
-                  className={`span-chip ${span.label}`}
-                  key={spanKey(span)}
-                  onMouseEnter={() =>
-                    setHover({ checklistId: span.checklist_id, spanKey: spanKey(span) })
-                  }
-                  onMouseLeave={() => setHover(null)}
-                >
-                  {span.label} · {span.chunk_id} · {span.start}–{span.end}
-                </button>
-              ))}
-            </div>
-
-            {active.retrieved_evidence.length > 0 && (
-              <>
-                <div className="rule-heading">
-                  <h3>Retrieved evidence</h3>
-                  <p>Chunks the retriever surfaced for this question, most relevant first.</p>
-                </div>
-                {[...active.retrieved_evidence]
-                  .sort((a, b) => b.score - a.score)
-                  .map((chunk) => (
-                    <div className="retrieved" key={chunk.chunk_id}>
-                      <div>
-                        <b>{chunk.chunk_id}</b>
-                        <span>{chunk.score.toFixed(4)}</span>
-                      </div>
-                      <small>{chunk.text}</small>
-                    </div>
-                  ))}
-              </>
-            )}
-
-            <div className="rule-heading">
-              <h3>Reviewer decision</h3>
-              <div className="actions">
-                <Button
-                  variant={decision === "Pass" ? "default" : "outline"}
-                  aria-pressed={decision === "Pass"}
-                  onClick={() => setDecision("Pass")}
-                >
-                  Pass
-                </Button>
-                <Button
-                  variant={decision === "Fail" ? "destructive" : "outline"}
-                  aria-pressed={decision === "Fail"}
-                  onClick={() => setDecision("Fail")}
-                >
-                  Confirm fail
-                </Button>
-                <Button
-                  variant={decision === "Unclear" ? "default" : "outline"}
-                  aria-pressed={decision === "Unclear"}
-                  onClick={() => setDecision("Unclear")}
-                >
-                  Unclear
-                </Button>
+          {active && (
+            <section className="card padded">
+              <div className="rule-heading flush flex items-center justify-between gap-2">
+                <h2>Reviewer decision</h2>
+                {locked && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-300 bg-slate-100 hover:bg-slate-200"
+                    onClick={() => startEdit(active.checklist_id)}
+                  >
+                    Edit
+                  </Button>
+                )}
+                {activeSaved && !locked && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-300 bg-slate-100 hover:bg-slate-200"
+                    onClick={() => cancelEdit(active.checklist_id)}
+                  >
+                    Cancel
+                  </Button>
+                )}
               </div>
-              <textarea placeholder="Add an optional review note…" />
-            </div>
-            <p className="subtle">
-              Your decision, note, and the cited passage become part of the final compliance report.
-            </p>
-          </section>
+              <p className="decision-question">{active.question}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="subtle">
+                  AI said: {active.status ? VERDICTS[active.status] : active.verdict}
+                </p>
+                <Select
+                  value={locked ? activeSaved.decision : (activeDraft?.decision ?? active.status)}
+                  disabled={locked}
+                  onValueChange={(value) =>
+                    setDrafts(
+                      chooseDecision(
+                        drafts,
+                        active.checklist_id,
+                        active.status,
+                        value as PipelineStatus,
+                      ),
+                    )
+                  }
+                >
+                  <SelectTrigger aria-label="Your decision" className="w-40 disabled:opacity-100">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DECISIONS.map(({ status, label }) => (
+                      <SelectItem key={status} value={status}>
+                        {status === active.status ? `${label} (AI)` : label}
+                      </SelectItem>
+                    ))}
+                    {/* The AI's own Partial / N/A answer stays selectable: picking it is how an override is reverted. */}
+                    {active.status && !DECISIONS.some((d) => d.status === active.status) && (
+                      <SelectItem value={active.status}>{VERDICTS[active.status]} (AI)</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <textarea
+                ref={commentBox}
+                placeholder={
+                  activeDraft
+                    ? "Explain why you disagree with the AI (required)…"
+                    : "Choose a different decision to add a comment…"
+                }
+                value={locked ? activeSaved.comment : (activeDraft?.comment ?? "")}
+                readOnly={locked}
+                disabled={!locked && !activeDraft}
+                onChange={(e) => setDrafts(setComment(drafts, active.checklist_id, e.target.value))}
+              />
+              {attempted && missingIds.has(active.checklist_id) && (
+                <p role="alert" className="required">
+                  A comment is required for this override.
+                  {othersMissing > 0 &&
+                    ` ${othersMissing} more question${othersMissing === 1 ? "" : "s"} need${othersMissing === 1 ? "s" : ""} one.`}
+                </p>
+              )}
+              <DecisionHistory entries={history} />
+            </section>
+          )}
         </div>
       </section>
+
+      <ReviewConfirmDialog
+        open={confirmOpen}
+        onOpenChange={closeConfirm}
+        overrides={confirmRows}
+        pending={submit.isPending}
+        error={submit.error?.message ?? null}
+        onConfirm={confirmSubmit}
+      />
     </>
   );
 }
