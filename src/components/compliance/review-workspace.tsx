@@ -5,6 +5,7 @@ import { useAnalysis } from "../../data/calls.ts";
 import type { PipelineStatus } from "../../data/pipeline-output.ts";
 import { toAnalysisView, VERDICTS } from "../../data/pipeline-output.ts";
 import { segmentAtTime, segmentTime } from "../../lib/audio.ts";
+import { formatReviewTime, type HistoryEntry, historyFor } from "../../lib/decision-history.ts";
 import {
   buildOverrides,
   chooseDecision,
@@ -43,6 +44,27 @@ const TRANSCRIPT_LINE_WIDTHS = ["94%", "88%", "97%", "62%", "91%", "80%", "95%",
 const CHECKLIST_ROW_WIDTHS = ["82%", "68%", "90%", "75%"];
 
 /** Placeholder lines shaped like the transcript pane, so layout does not jump on load. */
+/** Collapsed by default; hidden when the question has never been decided. */
+function DecisionHistory({ entries }: { entries: HistoryEntry[] }) {
+  if (entries.length === 0) return null;
+  return (
+    <details className="decision-history">
+      <summary>History ({entries.length})</summary>
+      {entries.map((entry) => (
+        <div key={entry.decidedAt} className="entry">
+          <time dateTime={entry.decidedAt}>{formatReviewTime(entry.decidedAt)}</time>
+          <b>
+            {entry.reverted
+              ? `Reverted to AI verdict (${VERDICTS[entry.to]})`
+              : `${VERDICTS[entry.from]} → ${VERDICTS[entry.to]}`}
+          </b>
+          {entry.comment && <div className="evidence">{entry.comment}</div>}
+        </div>
+      ))}
+    </details>
+  );
+}
+
 function TranscriptSkeleton() {
   return (
     <div className="evidence transcript">
@@ -378,6 +400,7 @@ function AnalysisWorkspace({
   const activeDraft = drafts[active?.checklist_id ?? ""];
   const saved = seedDrafts(review);
   const activeSaved = saved[active?.checklist_id ?? ""];
+  const history = historyFor(review, active?.checklist_id ?? "");
   const locked = Boolean(activeSaved) && !editing.has(active?.checklist_id ?? "");
   const startEdit = (id: string) => setEditing(new Set(editing).add(id));
   const cancelEdit = (id: string) => {
@@ -411,18 +434,7 @@ function AnalysisWorkspace({
           <p>Validate AI-generated checklist answers against the passages they were drawn from.</p>
         </div>
         <div className="actions">
-          {review && (
-            <Badge variant="good">
-              Reviewed ·{" "}
-              {new Date(review.reviewedAt).toLocaleString(undefined, {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Badge>
-          )}
+          {review && <Badge variant="good">Reviewed · {formatReviewTime(review.reviewedAt)}</Badge>}
           {canSubmit && missing.length === 0 && (
             <Button onClick={startSubmit}>{submitLabel}</Button>
           )}
@@ -678,6 +690,7 @@ function AnalysisWorkspace({
                   )}
                 </>
               )}
+              <DecisionHistory entries={history} />
             </div>
             <p className="subtle">
               Questions where your decision differs from the AI, with your comment, are saved when

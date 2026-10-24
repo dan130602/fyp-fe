@@ -629,6 +629,22 @@
 .app .rule-heading p.required {
   color: var(--red);
 }
+.app .decision-history {
+  margin-top: 12px;
+  font-size: 11px;
+}
+.app .decision-history summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.app .decision-history .entry {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+}
+.app .decision-history time {
+  color: var(--muted);
+}
 /* Reviewer badges sit on their own line under the question, not in the 27px icon column. */
 .app .result > .review-badges {
   grid-column: 2 / -1;
