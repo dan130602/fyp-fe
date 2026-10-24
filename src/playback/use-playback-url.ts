@@ -1,10 +1,12 @@
 // A presigned URL is a bearer credential: only fetched once an asset is actually selected.
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getMediaAssetAnalysis,
   getPlaybackUrl,
   listMediaAssets,
   type MediaAsset,
+  type ReviewOverrideInput,
+  submitReview,
 } from "./playback-api.ts";
 
 // Margin taken off the server's own expiry, so a cached URL goes stale before it
@@ -62,5 +64,14 @@ export function useMediaAssetAnalysis(mediaAssetId: string) {
     queryFn: () => getMediaAssetAnalysis(mediaAssetId),
     refetchInterval: (query) =>
       query.state.data?.analysisStatus === "PENDING" ? ANALYSIS_POLL_MS : false,
+  });
+}
+
+export function useSubmitReview(mediaAssetId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (overrides: ReviewOverrideInput[]) => submitReview(mediaAssetId, overrides),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["mediaAssetAnalysis", mediaAssetId] }),
   });
 }

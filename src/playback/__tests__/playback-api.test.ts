@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../auth/cognito-auth.ts", () => ({ getIdToken: vi.fn() }));
 
 const { getIdToken } = await import("../../auth/cognito-auth.ts");
-const { listMediaAssets, getPlaybackUrl, getMediaAssetAnalysis } = await import(
+const { listMediaAssets, getPlaybackUrl, getMediaAssetAnalysis, submitReview } = await import(
   "../playback-api.ts"
 );
 const { ApiError } = await import("../../lib/api-client.ts");
@@ -99,6 +99,7 @@ describe("getMediaAssetAnalysis", () => {
       analysisStatus: "PENDING",
       failureReason: null,
       result: null,
+      review: null,
     };
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
 
@@ -109,5 +110,41 @@ describe("getMediaAssetAnalysis", () => {
     const headers = new Headers(init?.headers);
     expect(headers.get("Authorization")).toBe("Bearer the-id-token");
     expect(result).toEqual(body);
+  });
+});
+
+describe("submitReview", () => {
+  it("PUTs the overrides as JSON with the bearer token and returns the saved review", async () => {
+    mockGetIdToken.mockResolvedValue("the-id-token");
+    const saved = {
+      reviewedBy: "u1",
+      reviewedAt: "2026-10-24T09:30:00",
+      overrides: [{ checklistItemId: "K01", aiVerdict: "PASS", decision: "FAIL", comment: "No" }],
+    };
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, saved));
+
+    const overrides = [{ checklistItemId: "K01", decision: "FAIL" as const, comment: "No" }];
+    const result = await submitReview("a1", overrides);
+
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toContain("/api/media-assets/a1/review");
+    expect(init?.method).toBe("PUT");
+    const headers = new Headers(init?.headers);
+    expect(headers.get("Authorization")).toBe("Bearer the-id-token");
+    expect(headers.get("Content-Type")).toBe("application/json");
+    expect(JSON.parse(init?.body as string)).toEqual({ overrides });
+    expect(result).toEqual(saved);
+  });
+
+  it("surfaces a 409 (analysis not ready) as an ApiError", async () => {
+    mockGetIdToken.mockResolvedValue("token");
+    vi.mocked(fetch).mockImplementation(async () =>
+      jsonResponse(409, { status: 409, error: "Conflict", message: "Analysis is not ready" }),
+    );
+
+    await expect(submitReview("a1", [])).rejects.toMatchObject({
+      status: 409,
+      message: "Analysis is not ready",
+    });
   });
 });
