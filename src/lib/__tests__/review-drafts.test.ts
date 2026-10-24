@@ -3,6 +3,7 @@ import {
   buildOverrides,
   chooseDecision,
   missingCommentIds,
+  pendingChangeCount,
   seedDrafts,
   setComment,
 } from "../review-drafts.ts";
@@ -104,5 +105,49 @@ describe("missingCommentIds", () => {
       K01: { decision: "FAIL", comment: "" },
     });
     expect(missingCommentIds(overrides)).toEqual(["K01", "K03"]);
+  });
+});
+
+describe("pendingChangeCount", () => {
+  const review = {
+    reviewedBy: "u1",
+    reviewedAt: "2026-10-24T09:30:00",
+    history: [],
+    overrides: [
+      {
+        checklistItemId: "K02",
+        aiVerdict: "FAIL" as const,
+        decision: "PASS" as const,
+        comment: "ok",
+      },
+    ],
+  };
+  const same = { checklistItemId: "K02", decision: "PASS" as const, comment: "ok" };
+
+  it("counts every override when nothing was saved", () => {
+    expect(pendingChangeCount([same], null)).toBe(1);
+    expect(pendingChangeCount([], undefined)).toBe(0);
+  });
+
+  it("is zero when nothing changed", () => {
+    expect(pendingChangeCount([same], review)).toBe(0);
+  });
+
+  it("counts a changed decision or comment", () => {
+    expect(pendingChangeCount([{ ...same, decision: "PARTIAL" }], review)).toBe(1);
+    expect(pendingChangeCount([{ ...same, comment: "different" }], review)).toBe(1);
+  });
+
+  it("counts a reverted override", () => {
+    expect(pendingChangeCount([], review)).toBe(1);
+  });
+
+  it("counts a new override alongside an unchanged one", () => {
+    expect(
+      pendingChangeCount(
+        [same, { checklistItemId: "K03", decision: "FAIL", comment: "x" }],
+        review,
+      ),
+    ).toBe(1);
   });
 });

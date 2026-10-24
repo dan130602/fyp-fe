@@ -63,3 +63,21 @@ export function buildOverrides(findings: AiAnswer[], drafts: Drafts): ReviewOver
 export function missingCommentIds(overrides: ReviewOverrideInput[]): string[] {
   return overrides.filter((o) => o.comment === "").map((o) => o.checklistItemId);
 }
+
+/**
+ * Checklist items whose current override differs from the saved review: new, changed
+ * decision or comment, or a saved override that has since been reverted.
+ */
+export function pendingChangeCount(
+  overrides: ReviewOverrideInput[],
+  review: ChecklistReview | null | undefined,
+): number {
+  const saved = new Map((review?.overrides ?? []).map((o) => [o.checklistItemId, o]));
+  let count = 0;
+  for (const o of overrides) {
+    const prior = saved.get(o.checklistItemId);
+    if (!prior || prior.decision !== o.decision || prior.comment !== o.comment) count++;
+    saved.delete(o.checklistItemId);
+  }
+  return count + saved.size;
+}
