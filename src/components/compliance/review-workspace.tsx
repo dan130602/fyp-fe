@@ -43,7 +43,6 @@ const MEDIA_ID_PREFIX = "media:";
 const TRANSCRIPT_LINE_WIDTHS = ["94%", "88%", "97%", "62%", "91%", "80%", "95%", "70%"];
 const CHECKLIST_ROW_WIDTHS = ["82%", "68%", "90%", "75%"];
 
-/** Placeholder lines shaped like the transcript pane, so layout does not jump on load. */
 /** Collapsed by default; hidden when the question has never been decided. */
 function DecisionHistory({ entries }: { entries: HistoryEntry[] }) {
   if (entries.length === 0) return null;
@@ -65,6 +64,7 @@ function DecisionHistory({ entries }: { entries: HistoryEntry[] }) {
   );
 }
 
+/** Placeholder lines shaped like the transcript pane, so layout does not jump on load. */
 function TranscriptSkeleton() {
   return (
     <div className="evidence transcript">
