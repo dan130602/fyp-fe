@@ -10,6 +10,7 @@ import {
   buildOverrides,
   chooseDecision,
   missingCommentIds,
+  pendingChangeCount,
   seedDrafts,
   setComment,
 } from "../../lib/review-drafts.ts";
@@ -28,6 +29,7 @@ import {
   usePlaybackUrl,
   useSubmitReview,
 } from "../../playback/use-playback-url.ts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select.tsx";
 import { Skeleton } from "../ui/skeleton.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip.tsx";
 import AudioPlayer from "./audio-player.tsx";
@@ -380,8 +382,11 @@ function AnalysisWorkspace({
     setJump((n) => n + 1);
   };
   const othersMissing = missing.filter((id) => id !== active?.checklist_id).length;
-  const submitLabel =
-    overrides.length === 0
+  const pending = pendingChangeCount(overrides, review);
+  const submitted = Boolean(review) && pending === 0;
+  const submitLabel = review
+    ? `Submit changes · ${pending}`
+    : overrides.length === 0
       ? "Approve AI review"
       : `Submit review · ${overrides.length} override${overrides.length === 1 ? "" : "s"}`;
   const closeConfirm = (open: boolean) => {
@@ -434,11 +439,29 @@ function AnalysisWorkspace({
           <p>Validate AI-generated checklist answers against the passages they were drawn from.</p>
         </div>
         <div className="actions">
-          {review && <Badge variant="good">Reviewed · {formatReviewTime(review.reviewedAt)}</Badge>}
-          {canSubmit && missing.length === 0 && (
+          {review && (
+            <Badge variant="good" className="px-2.5 py-1 text-xs">
+              Reviewed · {formatReviewTime(review.reviewedAt)}
+            </Badge>
+          )}
+          {canSubmit && submitted && (
+            <Tooltip>
+              {/* aria-disabled, not disabled: a disabled button gets no hover or focus, so no tooltip. */}
+              <TooltipTrigger asChild>
+                <Button aria-disabled className="cursor-not-allowed opacity-50">
+                  Review submitted
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                You can still change a decision: select a question, click Edit, then submit your
+                changes.
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {canSubmit && !submitted && missing.length === 0 && (
             <Button onClick={startSubmit}>{submitLabel}</Button>
           )}
-          {canSubmit && missing.length > 0 && (
+          {canSubmit && !submitted && missing.length > 0 && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button onClick={startSubmit}>{submitLabel}</Button>
@@ -532,21 +555,24 @@ function AnalysisWorkspace({
         {/* Right column: checklist above the selected item's evaluation, beside the transcript. */}
         <div className="grid content-start gap-5">
           <section className="card padded">
-            <div className="rule-heading">
+            <div className="rule-heading flush">
               <h2>AI checklist assessment</h2>
-              <p>Select an item to inspect its evidence and change the outcome if required.</p>
+              <p>
+                Select a question to review it. Overrides need a comment and are saved when you
+                submit.
+              </p>
             </div>
             <div
               ref={findingList}
-              className="max-h-[28rem] overflow-y-auto overscroll-contain pr-1"
+              className="max-h-[36rem] overflow-y-auto overscroll-contain pr-1"
             >
               {findings.map(({ checklist_id: id, question, verdict, confidence, reason }) => {
                 const overridden = overrideIds.has(id);
                 return (
                   <button
+                    key={id}
                     type="button"
                     className={`result finding ${activeId === id ? "selected" : ""} ${hover && highlight.checklistId !== id ? "dim" : ""}`}
-                    key={id}
                     onMouseEnter={() => setHover({ checklistId: id })}
                     onMouseLeave={() => setHover(null)}
                     onClick={() => pin(id)}
@@ -561,7 +587,9 @@ function AnalysisWorkspace({
                     </Badge>
                     {overridden && (
                       <span className="review-badges">
-                        <Badge variant="watch">Overridden → {VERDICTS[drafts[id].decision]}</Badge>
+                        <Badge variant="override">
+                          Overridden → {VERDICTS[drafts[id].decision]}
+                        </Badge>
                         {missingIds.has(id) && <Badge variant="risk">Comment needed</Badge>}
                       </span>
                     )}
@@ -570,133 +598,88 @@ function AnalysisWorkspace({
               })}
             </div>
           </section>
-
-          <section className="card padded">
-            <Badge variant={verdictTone(active.verdict)}>
-              AI verdict: {active.verdict} · {active.confidence} confidence
-            </Badge>
-            <h3>{active.question}</h3>
-            <p className="subtle">{active.reason}</p>
-
-            <h3>Quoted evidence</h3>
-            <div className="evidence">"{active.evidence_quote}"</div>
-            <span className="timestamp">{active.timestamp ?? active.chunk_id}</span>
-
-            <h3>Cited passages</h3>
-            <div className="actions">
-              {labelSpansByVerdict(active.spans, findings).map((span) => (
-                <button
-                  type="button"
-                  className={`span-chip ${span.label}`}
-                  key={spanKey(span)}
-                  onMouseEnter={() =>
-                    setHover({ checklistId: span.checklist_id, spanKey: spanKey(span) })
+          {active && (
+            <section className="card padded">
+              <div className="rule-heading flush flex items-center justify-between gap-2">
+                <h2>Reviewer decision</h2>
+                {locked && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-300 bg-slate-100 hover:bg-slate-200"
+                    onClick={() => startEdit(active.checklist_id)}
+                  >
+                    Edit
+                  </Button>
+                )}
+                {activeSaved && !locked && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-300 bg-slate-100 hover:bg-slate-200"
+                    onClick={() => cancelEdit(active.checklist_id)}
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
+              <p className="decision-question">{active.question}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="subtle">
+                  AI said: {active.status ? VERDICTS[active.status] : active.verdict}
+                </p>
+                <Select
+                  value={locked ? activeSaved.decision : (activeDraft?.decision ?? active.status)}
+                  disabled={locked}
+                  onValueChange={(value) =>
+                    setDrafts(
+                      chooseDecision(
+                        drafts,
+                        active.checklist_id,
+                        active.status,
+                        value as PipelineStatus,
+                      ),
+                    )
                   }
-                  onMouseLeave={() => setHover(null)}
                 >
-                  {span.label} · {span.chunk_id} · {span.start}–{span.end}
-                </button>
-              ))}
-            </div>
-
-            {active.retrieved_evidence.length > 0 && (
-              <>
-                <div className="rule-heading">
-                  <h3>Retrieved evidence</h3>
-                  <p>Chunks the retriever surfaced for this question, most relevant first.</p>
-                </div>
-                {[...active.retrieved_evidence]
-                  .sort((a, b) => b.score - a.score)
-                  .map((chunk) => (
-                    <div className="retrieved" key={chunk.chunk_id}>
-                      <div>
-                        <b>{chunk.chunk_id}</b>
-                        <span>{chunk.score.toFixed(4)}</span>
-                      </div>
-                      <small>{chunk.text}</small>
-                    </div>
-                  ))}
-              </>
-            )}
-
-            <div className="rule-heading">
-              <h3>Reviewer decision</h3>
-              {locked ? (
-                <>
-                  <div className="actions">
-                    <Badge variant="watch">Overridden → {VERDICTS[activeSaved.decision]}</Badge>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => startEdit(active.checklist_id)}
-                    >
-                      Edit decision
-                    </Button>
-                  </div>
-                  <div className="evidence mt-2">{activeSaved.comment}</div>
-                </>
-              ) : (
-                <>
-                  <div className="actions">
-                    {DECISIONS.map(({ status, label }) => {
-                      const chosen = (activeDraft?.decision ?? active.status) === status;
-                      return (
-                        <Button
-                          key={status}
-                          variant={
-                            chosen ? (status === "FAIL" ? "destructive" : "default") : "outline"
-                          }
-                          aria-pressed={chosen}
-                          onClick={() =>
-                            setDrafts(
-                              chooseDecision(drafts, active.checklist_id, active.status, status),
-                            )
-                          }
-                        >
-                          {label}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <textarea
-                    ref={commentBox}
-                    placeholder={
-                      activeDraft
-                        ? "Explain why you disagree with the AI (required)…"
-                        : "Choose a different decision to add a comment…"
-                    }
-                    value={activeDraft?.comment ?? ""}
-                    disabled={!activeDraft}
-                    onChange={(e) =>
-                      setDrafts(setComment(drafts, active.checklist_id, e.target.value))
-                    }
-                  />
-                  {attempted && missingIds.has(active.checklist_id) && (
-                    <p role="alert" className="required">
-                      A comment is required for this override.
-                      {othersMissing > 0 &&
-                        ` ${othersMissing} more question${othersMissing === 1 ? "" : "s"} need${othersMissing === 1 ? "s" : ""} one.`}
-                    </p>
-                  )}
-                  {activeSaved && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => cancelEdit(active.checklist_id)}
-                    >
-                      Cancel edit
-                    </Button>
-                  )}
-                </>
+                  <SelectTrigger aria-label="Your decision" className="w-40 disabled:opacity-100">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DECISIONS.map(({ status, label }) => (
+                      <SelectItem key={status} value={status}>
+                        {status === active.status ? `${label} (AI)` : label}
+                      </SelectItem>
+                    ))}
+                    {/* The AI's own Partial / N/A answer stays selectable: picking it is how an override is reverted. */}
+                    {active.status && !DECISIONS.some((d) => d.status === active.status) && (
+                      <SelectItem value={active.status}>{VERDICTS[active.status]} (AI)</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <textarea
+                ref={commentBox}
+                placeholder={
+                  activeDraft
+                    ? "Explain why you disagree with the AI (required)…"
+                    : "Choose a different decision to add a comment…"
+                }
+                value={locked ? activeSaved.comment : (activeDraft?.comment ?? "")}
+                readOnly={locked}
+                disabled={!locked && !activeDraft}
+                onChange={(e) => setDrafts(setComment(drafts, active.checklist_id, e.target.value))}
+              />
+              {attempted && missingIds.has(active.checklist_id) && (
+                <p role="alert" className="required">
+                  A comment is required for this override.
+                  {othersMissing > 0 &&
+                    ` ${othersMissing} more question${othersMissing === 1 ? "" : "s"} need${othersMissing === 1 ? "s" : ""} one.`}
+                </p>
               )}
               <DecisionHistory entries={history} />
-            </div>
-            <p className="subtle">
-              Questions where your decision differs from the AI, with your comment, are saved when
-              you submit the review.
-            </p>
-          </section>
+            </section>
+          )}
         </div>
       </section>
 

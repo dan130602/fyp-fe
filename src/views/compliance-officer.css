@@ -274,15 +274,16 @@
 .app .metric small {
   font-size: 10px;
 }
-.app .two-col,
-.app .review-layout {
+.app .two-col {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
   gap: 20px;
 }
-/* Transcript 60 / checklist + evaluation 40. */
+/* Transcript and checklist share the width equally. */
 .app .review-layout {
-  grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
+  gap: 20px;
 }
 .app .panel-title {
   display: flex;
@@ -567,67 +568,30 @@
 .app .finding.dim {
   opacity: 0.45;
 }
-.app .span-chip {
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-.app .span-chip.compliant {
-  border-color: var(--green);
-  background: var(--green-soft);
-  color: var(--green);
-}
-.app .span-chip.violation {
-  border-color: var(--red);
-  background: var(--red-soft);
-  color: var(--red);
-}
-.app .span-chip.unclear {
-  border-color: var(--amber);
-  background: var(--amber-soft);
-  color: var(--amber);
-}
-.app .retrieved {
-  margin-top: 10px;
-  padding: 9px 11px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fafcfe;
-}
-.app .retrieved div {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 11px;
-}
-.app .retrieved span {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.app .retrieved small {
-  margin-top: 4px;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.5;
-}
 .app .rule-heading {
   margin: 17px 0 13px;
   padding-top: 16px;
   border-top: 1px solid var(--line);
+}
+.app .rule-heading.flush {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.app .decision-question {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 800;
 }
 .app .rule-heading p {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 11px;
 }
-.app .rule-heading p.required {
+.app p.required {
+  margin: 4px 0 0;
   color: var(--red);
+  font-size: 11px;
 }
 .app .decision-history {
   margin-top: 12px;
@@ -677,17 +641,6 @@
 }
 .app .result > i.risk {
   background: var(--red-soft);
-}
-.app .timestamp {
-  display: inline-block;
-  margin-top: 9px;
-  padding: 3px 6px;
-  border-radius: 5px;
-  background: var(--blue-soft);
-  color: #4869a6;
-  font-size: 10px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
 }
 .app textarea {
   width: 100%;
