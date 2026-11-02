@@ -748,3 +748,262 @@
     grid-template-columns: 85px 1fr 56px;
   }
 }
+
+/* Officer dashboard segments */
+.app .dashboard-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.app .dashboard-filter {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.app .dashboard-filter input,
+.app .dashboard-filter select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 12px;
+}
+.app .dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.app .dashboard-segment {
+  min-width: 0;
+}
+.app .dashboard-segment:not(.dashboard-grid > *) {
+  margin-bottom: 16px;
+}
+.app .segment-error {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  font-size: 12px;
+}
+.app .segment-note {
+  margin: 10px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.app .segment-figure {
+  margin-bottom: 12px;
+}
+.app .segment-figure strong {
+  display: block;
+  font-size: 26px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.app .segment-figure small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.app .stat-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.app .stat-row span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.app .stat-row b {
+  font-variant-numeric: tabular-nums;
+}
+.app .stat-row i,
+.app .donut-legend i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.app .stat-row i.good {
+  background: var(--green);
+}
+.app .stat-row i.watch {
+  background: var(--amber);
+}
+.app .stat-row i.risk {
+  background: var(--red);
+}
+.app .stat-row i.info {
+  background: var(--blue);
+}
+/* Chart-only steps of the status hues: the badge tones are too close together as adjacent fills. */
+.app .donut-legend i.good {
+  background: #0a8f72;
+}
+.app .donut-legend i.watch {
+  background: #c98a00;
+}
+.app .donut-legend i.risk {
+  background: #b3243f;
+}
+.app .donut-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.app .donut {
+  flex: none;
+  width: 140px;
+  height: 140px;
+}
+.app .donut-part {
+  fill: none;
+  stroke-width: 15;
+  transition: opacity 0.12s;
+}
+.app .donut-part.good {
+  stroke: #0a8f72;
+}
+.app .donut-part.watch {
+  stroke: #c98a00;
+}
+.app .donut-part.risk {
+  stroke: #b3243f;
+}
+.app .donut-value {
+  fill: var(--ink);
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.app .donut-label {
+  fill: var(--muted);
+  font-size: 7.5px;
+}
+.app .donut-legend {
+  flex: 1 1 140px;
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+.app .donut-legend li {
+  display: grid;
+  grid-template-columns: 8px 1fr auto 44px;
+  align-items: center;
+  gap: 7px;
+  font-variant-numeric: tabular-nums;
+}
+.app .donut-legend small {
+  color: var(--muted);
+  text-align: right;
+}
+.app .dashboard-table {
+  overflow-x: auto;
+}
+.app .dashboard-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.app .dashboard-table th {
+  padding: 7px 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.app .dashboard-table td {
+  padding: 9px 8px;
+  border-top: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.app .dashboard-table td small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}
+.app .dashboard-calls,
+.app .call-findings,
+.app .call-red-flags ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.app .dashboard-calls li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.app .dashboard-calls small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+.app .dashboard-calls small.violated-item {
+  color: var(--red);
+}
+.app .dashboard-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 11px;
+}
+.app .call-findings li {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.app .call-findings p {
+  margin: 5px 0 0;
+}
+.app .call-finding-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.app .call-override {
+  color: var(--violet);
+}
+.app .call-findings blockquote {
+  margin: 7px 0 0;
+  padding-left: 9px;
+  border-left: 2px solid var(--line-strong);
+  color: var(--muted);
+}
+.app .call-red-flags {
+  margin-bottom: 12px;
+}
+.app .call-red-flags h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+.app .call-red-flags li {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+@media (max-width: 1100px) {
+  .app .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

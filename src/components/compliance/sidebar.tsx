@@ -1,4 +1,4 @@
-import { useOutstandingItemCount } from "@/data/calls.ts";
+import { useOutstandingItems } from "@/dashboard/use-dashboard.ts";
 
 /* Navigation structure, not domain data — it describes the officer view's own
    pages, so it stays here rather than in src/data/. */
@@ -23,7 +23,7 @@ export function navLabel(id: PageId): string {
 
 /** Left rail of the compliance officer view. */
 export default function Sidebar({ page, setPage }: SidebarProps) {
-  const outstanding = useOutstandingItemCount();
+  const { data: outstanding } = useOutstandingItems();
   return (
     <aside>
       {/* No brand mark here: the top nav already carries it directly above this rail. */}
@@ -42,7 +42,7 @@ export default function Sidebar({ page, setPage }: SidebarProps) {
           >
             <i>{icon}</i>
             {label}
-            {id === "reviews" && <b>{outstanding}</b>}
+            {id === "reviews" && outstanding && <b>{outstanding.awaitingReview}</b>}
           </button>
         ))}
       </nav>
