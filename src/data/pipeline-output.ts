@@ -36,11 +36,18 @@ export interface PipelineResult {
   evidence?: PipelineEvidenceRef[];
 }
 
+export interface PipelineRedFlag {
+  category: string;
+  severity: "low" | "medium" | "high";
+  description: string;
+}
+
 export interface PipelineOutput {
   call_id?: string | null;
   segments?: PipelineSegment[];
   checklist?: PipelineChecklistItem[];
   final_results?: PipelineResult[];
+  final_red_flags?: PipelineRedFlag[];
   summary?: {
     total?: number;
     counts?: Partial<Record<PipelineStatus, number>>;

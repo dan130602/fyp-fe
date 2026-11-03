@@ -1,18 +1,29 @@
-import { Badge } from "@/components/ui/badge.tsx";
+import { useState } from "react";
 import { Button } from "@/components/ui/button.tsx";
-import { useDashboardSummary, useReviewQueue } from "../../data/calls.ts";
-import ProgressRow from "./progress-row.jsx";
-import QueueItem from "./queue-item.tsx";
+import { useAdvisors } from "../../advisors/use-advisors.ts";
+import type { DashboardFilters } from "../../dashboard/dashboard-api.ts";
+import DashboardCalls, { type CallsScope } from "./dashboard-calls.tsx";
+import {
+  AdvisorComplianceSegment,
+  ChecklistCompletionSegment,
+  ComplianceOverviewSegment,
+  OutstandingItemsSegment,
+  ReviewStatusSegment,
+} from "./dashboard-segments.tsx";
 import type { PageId } from "./sidebar.tsx";
 
 interface DashboardProps {
   setPage: (page: PageId) => void;
 }
 
-/** Landing page for the compliance officer: today's numbers and what to look at first. */
+const ALL_CALLS: CallsScope = { advisorId: null, label: "All calls" };
+
+/** Landing page for the compliance officer: org-wide numbers and what to look at first. */
 export default function Dashboard({ setPage }: DashboardProps) {
-  const { hero, metrics, progress } = useDashboardSummary();
-  const queue = useReviewQueue();
+  const [filters, setFilters] = useState<DashboardFilters>({ from: "", to: "", department: "" });
+  const [callsScope, setCallsScope] = useState<CallsScope | null>(null);
+  const { data: advisors } = useAdvisors();
+  const departments = [...new Set((advisors ?? []).map((advisor) => advisor.department))].sort();
 
   return (
     <>
@@ -25,81 +36,61 @@ export default function Dashboard({ setPage }: DashboardProps) {
           </p>
         </div>
         <div className="actions">
-          <Button variant="outline">Export management report</Button>
           <Button onClick={() => setPage("reviews")}>Open review queue</Button>
         </div>
       </section>
-      <section className="hero card">
-        <div>
-          <span className="eyebrow">Priority signal · {hero.highRiskCalls} high-risk calls</span>
-          <h2>{hero.outstandingItems} review items need compliance attention</h2>
-          <p>
-            Most conversations are progressing automatically. Focus human judgement on unclear
-            evidence, failed checklist items, and calls nearing their review deadline.
-          </p>
-          <div className="actions">
-            <Button onClick={() => setPage("reviews")}>Review priority calls</Button>
-            <Button variant="outline" onClick={() => setPage("reports")}>
-              See performance results
-            </Button>
-          </div>
-        </div>
-        <div className="hero-summary">
-          <small>Today’s completion rate</small>
-          <strong>{hero.completionRate}</strong>
-          <Badge variant="watch">In progress</Badge>
-          <hr />
-          <span>
-            Calls processed <b>{hero.callsProcessed}</b>
-          </span>
-          <span>
-            Checklists complete <b>{hero.checklistsComplete}</b>
-          </span>
-          <span>
-            Escalations open <b>{hero.escalationsOpen}</b>
-          </span>
-        </div>
+      <section className="dashboard-filters" aria-label="Dashboard filters">
+        <label className="dashboard-filter">
+          From
+          <input
+            type="date"
+            value={filters.from}
+            onChange={(event) => setFilters({ ...filters, from: event.target.value })}
+          />
+        </label>
+        <label className="dashboard-filter">
+          To
+          <input
+            type="date"
+            value={filters.to}
+            onChange={(event) => setFilters({ ...filters, to: event.target.value })}
+          />
+        </label>
+        <label className="dashboard-filter">
+          Department
+          <select
+            value={filters.department}
+            onChange={(event) => setFilters({ ...filters, department: event.target.value })}
+          >
+            <option value="">All departments</option>
+            {departments.map((department) => (
+              <option key={department} value={department}>
+                {department}
+              </option>
+            ))}
+          </select>
+        </label>
       </section>
-      <section className="metrics">
-        {metrics.map(({ label, value, detail, tone }) => (
-          <article className="metric card" key={label}>
-            <div>
-              {label}
-              <i className={tone} />
-            </div>
-            <strong>{value}</strong>
-            <small className={tone}>{detail}</small>
-          </article>
-        ))}
+      <section className="dashboard-grid">
+        <ComplianceOverviewSegment filters={filters} onViewCalls={() => setCallsScope(ALL_CALLS)} />
+        <ReviewStatusSegment filters={filters} />
+        <OutstandingItemsSegment filters={filters} />
       </section>
-      <section className="two-col">
-        <article className="card padded">
-          <div className="panel-title">
-            <div>
-              <h2>Review progress by business area</h2>
-              <p>Call-level checklist completion for the current review window</p>
-            </div>
-            <Badge variant="info">Today</Badge>
-          </div>
-          {progress.map((row) => (
-            <ProgressRow key={row.label} {...row} />
-          ))}
-        </article>
-        <article className="card padded">
-          <div className="panel-title">
-            <div>
-              <h2>Priority review queue</h2>
-              <p>AI flagged calls with material compliance risk</p>
-            </div>
-            <Button size="sm" variant="secondary" onClick={() => setPage("reviews")}>
-              View all
-            </Button>
-          </div>
-          {queue.map((item) => (
-            <QueueItem key={item.id} {...item} onClick={() => setPage("reviews")} />
-          ))}
-        </article>
-      </section>
+      <ChecklistCompletionSegment filters={filters} />
+      <AdvisorComplianceSegment
+        filters={filters}
+        onViewCalls={(advisor) =>
+          setCallsScope({ advisorId: advisor.advisorId, label: `Calls for ${advisor.fullName}` })
+        }
+      />
+      {callsScope && (
+        <DashboardCalls
+          key={callsScope.advisorId ?? "all"}
+          filters={filters}
+          scope={callsScope}
+          onClose={() => setCallsScope(null)}
+        />
+      )}
     </>
   );
 }

@@ -1,6 +1,5 @@
 /* ---------------------------------------------------------------------------
-   Data for the compliance officer view. The dashboard numbers are still dummy;
-   the review queue reads the captured AI service responses in ./analyses, which
+   Data for the compliance officer view. The review queue reads the captured AI service responses in ./analyses, which
    are already in the shape the API returns.
 
    Nothing here is exported directly. Views read this module through the hooks
@@ -88,45 +87,6 @@ const ANALYSES = Object.entries(
   .map(([path, analysis]) => ({ id: path.replace(/^.*\/|\.json$/g, ""), analysis }))
   .sort((a, b) => a.id.localeCompare(b.id));
 
-const HERO_SUMMARY = {
-  completionRate: "78%",
-  callsProcessed: "42",
-  checklistsComplete: "33",
-  escalationsOpen: "4",
-  highRiskCalls: 4,
-  outstandingItems: 17,
-};
-
-const DASHBOARD_METRICS = [
-  { label: "Calls received", value: "42", detail: "+8 from yesterday", tone: "good" },
-  { label: "Checklist completion", value: "78%", detail: "9 calls awaiting items", tone: "watch" },
-  { label: "Compliance pass rate", value: "83%", detail: "+3 pp against last week", tone: "good" },
-  { label: "Outstanding items", value: "17", detail: "4 high-risk calls", tone: "risk" },
-];
-
-const REVIEW_PROGRESS = [
-  { label: "Retail banking", value: 91, note: "11/12", tone: "good" },
-  { label: "Wealth advisory", value: 67, note: "8/12", tone: "watch" },
-  { label: "Cards & lending", value: 80, note: "12/15", tone: "info" },
-  { label: "Service desk", value: 100, note: "2/2", tone: "good" },
-];
-
-const PRIORITY_QUEUE = [
-  { id: "CC-2481", text: "Risk disclosure acknowledgement not found", tone: "risk" },
-  { id: "CC-2477", text: "Identity verification evidence is unclear", tone: "watch" },
-  { id: "CC-2469", text: "Potentially unsuitable product explanation", tone: "risk" },
-] satisfies { id: string; text: string; tone: Tone }[];
-
-/** Headline numbers and progress bars for the officer dashboard. */
-export function useDashboardSummary() {
-  return { hero: HERO_SUMMARY, metrics: DASHBOARD_METRICS, progress: REVIEW_PROGRESS };
-}
-
-/** Calls the pipeline flagged as needing a human decision first. */
-export function useReviewQueue() {
-  return PRIORITY_QUEUE;
-}
-
 /** Verdicts that decide how urgent a call looks in the list. */
 function riskOf(summary: Summary): { label: string; tone: Tone } {
   if (summary.fail > 0) return { label: "High risk", tone: "risk" };
@@ -185,9 +145,4 @@ export function useAnalysis(id: string) {
     report,
     summary: report.summary,
   };
-}
-
-/** Badge count on the sidebar's review-queue entry. */
-export function useOutstandingItemCount() {
-  return HERO_SUMMARY.outstandingItems;
 }
