@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/auth-context.tsx";
 import { labelForRole, ROLES } from "@/auth/roles.ts";
 import { Badge } from "@/components/ui/badge.tsx";
@@ -12,7 +12,13 @@ import { ROUTES } from "@/routes.ts";
  */
 export default function TopNav() {
   const { user, role, logout } = useAuth();
+  const navigate = useNavigate();
   if (!user) return null;
+
+  const signOut = () => {
+    logout();
+    navigate(ROUTES.LOGIN, { replace: true });
+  };
 
   return (
     <div className="topnav">
@@ -33,7 +39,7 @@ export default function TopNav() {
         <Button
           size="xs"
           variant="secondary"
-          onClick={logout}
+          onClick={signOut}
           className="bg-white text-black hover:bg-white/90"
         >
           Sign out

@@ -17,6 +17,7 @@ export interface CurrentUser {
 
 /** Backend MANAGER folds into ADMIN — the frontend has no separate manager role. */
 export function roleFromBackend(role: BackendRole): Role {
+  if (role === "DEVELOPER") return ROLES.DEVELOPER;
   if (role === "ADMIN" || role === "MANAGER") return ROLES.ADMIN;
   return ROLES.OFFICER;
 }

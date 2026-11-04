@@ -4,6 +4,7 @@ import { ROUTES } from "../routes.ts";
 export const ROLES = {
   ADMIN: "ADMIN",
   OFFICER: "COMPLIANCE_OFFICER",
+  DEVELOPER: "DEVELOPER",
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
@@ -19,11 +20,13 @@ export type LoginResult = { ok: true; user: AuthUser } | { ok: false; error: str
 export const ROLE_LABELS: Record<Role, string> = {
   [ROLES.ADMIN]: "Administrator",
   [ROLES.OFFICER]: "Compliance officer",
+  [ROLES.DEVELOPER]: "Developer",
 };
 
 export const ROLE_HOME: Record<Role, string> = {
   [ROLES.ADMIN]: ROUTES.MANAGEMENT,
   [ROLES.OFFICER]: ROUTES.REVIEW,
+  [ROLES.DEVELOPER]: `${ROUTES.DEVELOPER}?tab=production`,
 };
 
 export function homeRouteFor(role: Role | null | undefined): string {
