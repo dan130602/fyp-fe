@@ -78,3 +78,37 @@ src/
 Logging goes through `src/lib/logger.ts`. Gate `debug`/`info` calls with a
 module-local `DEV &&` so the strings are stripped from production builds — the gate
 has to stay at the call site to be strippable.
+
+## Production observability
+
+Open **Developer > Production** (`/developer?tab=production`) for a live,
+read-only view of saved AI outcomes and officer decisions. It uses the existing
+authenticated `/api/observability?days=7` endpoint contract and refreshes every
+minute. Deploy the matching backend reporting endpoint; this feature adds no
+migration and does not change the officer or management workflow.
+
+Configure the API URL and public Cognito SPA settings in ignored `.env.local`.
+Sign in and open the developer page in the same tab and origin (the current
+app uses tab-scoped storage). Reporting requires DEVELOPER, ADMIN, SUPER_ADMIN or MANAGER.
+Developer accounts land directly on Production after sign-in. The panel sign-in
+link returns reporting accounts to this dashboard, and Sign out returns to `/login`.
+Backend failures show an unavailable state, never a sample-data fallback.
+
+The source is the existing `t_langgraph_output`, `t_checklist` and
+`t_checklist_decision` records. In a finalized review, the latest officer
+override is the reference; an unchanged answer means the saved AI verdict was
+accepted. Unreviewed calls, reviews predating a newer output, conflicting AI
+snapshots and ambiguous decision ordering are excluded from FP/FN.
+
+Breach (FAIL) is positive: AI FAIL / officer PASS is FP, AI PASS / officer FAIL
+is FN. Accepted FAIL/PASS results contribute TP/TN only after final review.
+The dashboard retains original decision UUIDs; repeated edits and reverts do
+not inflate current totals. This is an officer-approved production reference,
+not an independent benchmark ground truth.
+
+The activity window includes calls analysed or reviewed during the window.
+Costs and timing cover the latest saved results in that cohort, including older
+calls reviewed recently. They are not a complete billing ledger: the existing
+schema overwrites earlier AI runs. Missing telemetry remains unavailable and
+no latency is inferred from database timestamps. No Langfuse setup is needed.
+See `fyp-be/docs/production-observability.md` for deployment and access details.

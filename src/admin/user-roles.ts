@@ -6,6 +6,7 @@ export const BACKEND_ROLES = {
   ADMIN: "ADMIN",
   MANAGER: "MANAGER",
   COMPLIANCE_OFFICER: "COMPLIANCE_OFFICER",
+  DEVELOPER: "DEVELOPER",
 } as const;
 
 export type BackendRole = (typeof BACKEND_ROLES)[keyof typeof BACKEND_ROLES];
@@ -15,6 +16,7 @@ export const BACKEND_ROLE_LABELS: Record<BackendRole, string> = {
   [BACKEND_ROLES.ADMIN]: "Administrator",
   [BACKEND_ROLES.MANAGER]: "Compliance manager",
   [BACKEND_ROLES.COMPLIANCE_OFFICER]: "Compliance officer",
+  [BACKEND_ROLES.DEVELOPER]: "Developer",
 };
 
 export function labelForBackendRole(role: BackendRole): string {

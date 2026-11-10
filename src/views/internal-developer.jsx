@@ -1,5 +1,8 @@
-import { useState } from "react";
 import { Info } from "lucide-react";
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import AblationTable from "../components/developer/ablation-table.jsx";
+import ProductionPanel from "../components/developer/production-panel.jsx";
 import {
   useAblationRuns,
   useChecklistQuestions,
@@ -7,8 +10,6 @@ import {
   useEvalDataset,
   useMetricGroups,
 } from "../data/ablation-runs.js";
-import AblationTable from "../components/developer/ablation-table.jsx";
-import ProductionPanel from "../components/developer/production-panel.jsx";
 import "./internal-developer.css";
 
 const STATUS_FILTERS = ["All", "Candidate", "Deployed", "Rejected"];
@@ -28,7 +29,17 @@ export default function InternalDeveloper() {
   const questions = useChecklistQuestions();
   const dataset = useEvalDataset();
 
-  const [tab, setTab] = useState("ablations");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "production" ? "production" : "ablations";
+  const setTab = (next) =>
+    setSearchParams(
+      (current) => {
+        const params = new URLSearchParams(current);
+        params.set("tab", next);
+        return params;
+      },
+      { replace: true },
+    );
   const [openId, setOpenId] = useState("R008");
   const [filter, setFilter] = useState("All");
 
@@ -41,27 +52,36 @@ export default function InternalDeveloper() {
           <div>
             <h1>Technical view</h1>
             <p className="sub">
-              Experiment history and production health for the compliance verdict pipeline. Every
-              metric is a delta against the live version. Developer role only.
+              {tab === "production"
+                ? "Production performance and officer review changes. Developer or reporting access required."
+                : "Experiment comparisons from the local demo dataset."}
             </p>
           </div>
-          <div className="meta">
-            live{" "}
-            <b>
-              {live?.version} · {live?.sha}
-            </b>
-            <br />
-            dataset <b>{dataset.name}</b> · {dataset.items} items
-            <br />
-            {dataset.shape}
-          </div>
+          {tab === "ablations" && (
+            <div className="meta">
+              live{" "}
+              <b>
+                {live?.version} · {live?.sha}
+              </b>
+              <br />
+              dataset <b>{dataset.name}</b> · {dataset.items} items
+              <br />
+              {dataset.shape}
+            </div>
+          )}
         </div>
 
         <div className="tabs">
-          <button className="tb" data-on={tab === "ablations"} onClick={() => setTab("ablations")}>
+          <button
+            type="button"
+            className="tb"
+            data-on={tab === "ablations"}
+            onClick={() => setTab("ablations")}
+          >
             Ablations
           </button>
           <button
+            type="button"
             className="tb"
             data-on={tab === "production"}
             onClick={() => setTab("production")}

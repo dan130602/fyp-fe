@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { homeRouteFor, labelForRole, ROLE_HOME, ROLE_LABELS, ROLES, type Role } from "../roles.ts";
 
-const ALL_ROLES: Role[] = [ROLES.ADMIN, ROLES.OFFICER];
+const ALL_ROLES: Role[] = [ROLES.ADMIN, ROLES.OFFICER, ROLES.DEVELOPER];
 
 describe("ROLE_LABELS and ROLE_HOME", () => {
   it("covers every Role with a label", () => {
@@ -14,6 +14,9 @@ describe("ROLE_LABELS and ROLE_HOME", () => {
 });
 
 describe("homeRouteFor", () => {
+  it("sends developers directly to production observability", () => {
+    expect(homeRouteFor(ROLES.DEVELOPER)).toBe("/developer?tab=production");
+  });
   it.each(ALL_ROLES)("returns the mapped home route for %s", (role) => {
     expect(homeRouteFor(role)).toBe(ROLE_HOME[role]);
   });
