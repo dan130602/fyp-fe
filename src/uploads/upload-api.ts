@@ -19,6 +19,7 @@ export interface FileUploadRequest {
 
 /** Mirrors the backend's FileUploadResponse record. */
 export interface FileUploadResponse {
+  id: string;
   fileName: string;
   objectKey: string;
   presignedUrl: string;
