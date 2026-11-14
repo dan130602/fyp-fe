@@ -2,15 +2,10 @@ import { Upload } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
-import type { UploadResult } from "../../uploads/use-upload-file.ts";
 import UploadDialog from "./upload-dialog.tsx";
 
-export interface UploadZoneResult extends UploadResult {
-  file: File;
-}
-
 /** Banner that opens the upload wizard. */
-export default function UploadZone({ onUpload }: { onUpload: (result: UploadZoneResult) => void }) {
+export default function UploadZone({ onUpload }: { onUpload: () => void }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="upload-zone">
