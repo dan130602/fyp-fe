@@ -20,97 +20,95 @@ import {
   parseChecklistCsv,
 } from "@/uploads/parse-checklist-csv.ts";
 import type { ChecklistItem, ProcessingMode } from "@/uploads/upload-api.ts";
+import { MAX_FILES_PER_UPLOAD } from "@/uploads/upload-constants.ts";
 import { validateFile } from "@/uploads/upload-validation.ts";
 import { useDefaultChecklist } from "@/uploads/use-default-checklist.ts";
-import { type UploadResult, useUploadFile } from "@/uploads/use-upload-file.ts";
+import { type UploadItem, useUploadFiles } from "@/uploads/use-upload-files.ts";
 
 const STEPS = [
   {
-    title: "Choose file",
-    description: "Pick the call recording to analyse. MP3, WAV or M4A, up to 100 MB.",
+    title: "Choose files",
+    description: `Pick up to ${MAX_FILES_PER_UPLOAD} call recordings to analyse. MP3, WAV or M4A, up to 100 MB each.`,
   },
   {
     title: "Advisor",
-    description: "Choose the advisor on this call, so the analysis counts towards their results.",
+    description:
+      "Choose the advisor on these calls, so the analysis counts towards their results. All files use the same advisor.",
   },
   {
     title: "Checklist",
     description:
-      "These are the questions the AI will answer about this call. Remove any that don't apply, add your own, or import many at once from a CSV.",
+      "These are the questions the AI will answer about each call. Remove any that don't apply, add your own, or import many at once from a CSV.",
   },
   {
     title: "Review",
-    description: "Check the file, advisor and questions, choose when to process it, then upload.",
+    description:
+      "Check the files, advisor and questions, choose when to process them, then upload.",
   },
 ] as const;
-
-const MODE_OPTIONS: { value: ProcessingMode; label: string }[] = [
-  { value: "immediate", label: "Process now" },
-  { value: "batch", label: "Process later" },
-];
 
 interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUploaded: (result: UploadResult & { file: File }) => void;
+  onUploaded: () => void;
 }
 
-/** Four-step upload: pick a recording, pick its advisor, edit its checklist, review and upload. */
+/** Four-step upload: pick recordings, pick their advisor, edit the checklist, review and upload. */
 export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadDialogProps) {
   const [step, setStep] = useState(0);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [advisor, setAdvisor] = useState<Advisor | null>(null);
   const [edited, setEdited] = useState<ChecklistItem[] | null>(null);
   const defaults = useDefaultChecklist();
   const checklist = edited ?? defaults.data ?? [];
-  const [progress, setProgress] = useState(0);
-  const [processingMode, setProcessingMode] = useState<ProcessingMode>("immediate");
-  const mutation = useUploadFile();
+  const uploads = useUploadFiles();
+  const [started, setStarted] = useState(false);
 
   const reset = () => {
     setStep(0);
-    setFile(null);
+    setFiles([]);
     setAdvisor(null);
     setEdited(null);
-    setProcessingMode("immediate");
-    setProgress(0);
-    mutation.reset();
+    setStarted(false);
+    uploads.reset();
   };
 
   const handleOpenChange = (next: boolean) => {
-    if (mutation.isPending) return; // no closing mid-upload
+    if (uploads.isUploading) return; // no closing mid-upload
     if (!next) reset();
     onOpenChange(next);
   };
 
-  const upload = () => {
-    if (!file || !advisor) return;
-    mutation.mutate(
-      { file, checklist, advisorId: advisor.id, processingMode, onProgress: setProgress },
-      {
-        onSuccess: (result) => {
-          onUploaded({ ...result, file });
-          handleOpenChange(false);
-        },
-      },
-    );
+  const upload = async (processingMode: ProcessingMode) => {
+    if (files.length === 0 || !advisor) return;
+    setStarted(true);
+    const { succeeded } = await uploads.start(files, {
+      checklist,
+      advisorId: advisor.id,
+      processingMode,
+    });
+    if (succeeded > 0) onUploaded();
   };
 
-  const canContinue = [file !== null, advisor !== null, checklist.length > 0][step] ?? false;
+  const retry = async (key: string) => {
+    if (await uploads.retry(key)) onUploaded();
+  };
+
+  const canContinue = [files.length > 0, advisor !== null, checklist.length > 0][step] ?? false;
   const lastStep = STEPS.length - 1;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-4xl">
+      <DialogContent className="sm:max-w-4xl" showCloseButton={!uploads.isUploading}>
         <DialogHeader>
-          <DialogTitle>Upload a call recording</DialogTitle>
+          <DialogTitle>Upload call recordings</DialogTitle>
           <p className="text-sm font-medium">
             Step {step + 1} of {STEPS.length} · {STEPS[step].title}
           </p>
           <DialogDescription>{STEPS[step].description}</DialogDescription>
         </DialogHeader>
 
-        {step === 0 && <FileStep file={file} onChange={setFile} />}
+        {step === 0 && <FileStep files={files} onChange={setFiles} />}
         {step === 1 && <AdvisorPicker selected={advisor} onSelect={setAdvisor} />}
         {step === 2 && defaults.isPending && <p className="text-sm">Loading checklist…</p>}
         {step === 2 && defaults.isError && (
@@ -121,31 +119,14 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
         {step === 2 && !defaults.isPending && (
           <ChecklistStep items={checklist} onChange={setEdited} />
         )}
-        {step === lastStep && file && advisor && (
-          <ReviewStep
-            file={file}
-            advisor={advisor}
-            items={checklist}
-            processingMode={processingMode}
-            onProcessingModeChange={setProcessingMode}
-            disabled={mutation.isPending}
-          />
+        {step === lastStep && files.length > 0 && advisor && !started && (
+          <ReviewStep files={files} advisor={advisor} items={checklist} />
         )}
-
-        {mutation.isPending && <p className="text-sm">Uploading… {Math.round(progress * 100)}%</p>}
-        {mutation.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {mutation.error.message}
-          </p>
-        )}
+        {step === lastStep && started && <UploadProgress items={uploads.items} onRetry={retry} />}
 
         <DialogFooter>
-          {step > 0 && (
-            <Button
-              variant="outline"
-              disabled={mutation.isPending}
-              onClick={() => setStep(step - 1)}
-            >
+          {step > 0 && !started && (
+            <Button variant="outline" onClick={() => setStep(step - 1)}>
               Back
             </Button>
           )}
@@ -153,10 +134,17 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
             <Button disabled={!canContinue} onClick={() => setStep(step + 1)}>
               Next
             </Button>
+          ) : uploads.isUploading ? (
+            <Button disabled>Uploading…</Button>
+          ) : started ? (
+            <Button onClick={() => handleOpenChange(false)}>Close</Button>
           ) : (
-            <Button disabled={mutation.isPending} onClick={upload}>
-              {mutation.isPending ? "Uploading…" : "Upload"}
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => upload("batch")}>
+                Upload, process tonight
+              </Button>
+              <Button onClick={() => upload("immediate")}>Upload and process now</Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>
@@ -164,27 +152,38 @@ export default function UploadDialog({ open, onOpenChange, onUploaded }: UploadD
   );
 }
 
-function FileStep({
-  file,
-  onChange,
-}: {
-  file: File | null;
-  onChange: (file: File | null) => void;
-}) {
-  const [error, setError] = useState("");
+const fileId = (file: File) => `${file.name}:${file.size}:${file.lastModified}`;
+const sizeMb = (file: File) => (file.size / (1024 * 1024)).toFixed(1);
+
+function FileStep({ files, onChange }: { files: File[]; onChange: (files: File[]) => void }) {
+  const [errors, setErrors] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
 
-  const pick = (picked: File | undefined) => {
-    if (!picked) return;
-    const result = validateFile(picked);
-    setError(result.ok ? "" : result.reason);
-    onChange(result.ok ? picked : null);
+  const pick = (picked: File[]) => {
+    if (picked.length === 0) return;
+    const next = [...files];
+    const reasons: string[] = [];
+    for (const file of picked) {
+      if (next.some((other) => fileId(other) === fileId(file))) continue;
+      const result = validateFile(file);
+      if (!result.ok) {
+        reasons.push(result.reason);
+      } else if (next.length >= MAX_FILES_PER_UPLOAD) {
+        reasons.push(
+          `Only ${MAX_FILES_PER_UPLOAD} files can be uploaded at once; '${file.name}' was not added.`,
+        );
+      } else {
+        next.push(file);
+      }
+    }
+    setErrors(reasons);
+    onChange(next);
   };
 
   const onDrop = (event: DragEvent<HTMLLabelElement>) => {
     event.preventDefault();
     setDragging(false);
-    pick(event.dataTransfer.files[0]);
+    pick(Array.from(event.dataTransfer.files));
   };
 
   return (
@@ -198,19 +197,47 @@ function FileStep({
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
-        <b>{file ? file.name : "Drop an MP3, WAV or M4A here"}</b>
-        <span className="text-muted-foreground">or click to choose a file</span>
+        <b>Drop MP3, WAV or M4A files here</b>
+        <span className="text-muted-foreground">or click to choose files</span>
         <input
           type="file"
+          multiple
           className="sr-only"
           accept="audio/mpeg,audio/wav,audio/x-wav,audio/mp4,.mp3,.wav,.m4a"
-          onChange={(event) => pick(event.target.files?.[0])}
+          onChange={(event) => {
+            pick(Array.from(event.target.files ?? []));
+            event.target.value = ""; // lets the same file be picked again
+          }}
         />
       </label>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
+      {errors.length > 0 && (
+        <div role="alert" className="grid gap-1 text-sm text-destructive">
+          {errors.map((reason) => (
+            <p key={reason}>{reason}</p>
+          ))}
+        </div>
+      )}
+      {files.length > 0 && (
+        <ul className="grid gap-1">
+          {files.map((file) => (
+            <li
+              key={fileId(file)}
+              className="flex items-center justify-between gap-3 rounded-md border p-2 text-sm"
+            >
+              <span>
+                {file.name} ({sizeMb(file)} MB)
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Remove ${file.name}`}
+                onClick={() => onChange(files.filter((other) => other !== file))}
+              >
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
@@ -330,46 +357,27 @@ function SourceBadge({ item }: { item: ChecklistItem }) {
 }
 
 function ReviewStep({
-  file,
+  files,
   advisor,
   items,
-  processingMode,
-  onProcessingModeChange,
-  disabled,
 }: {
-  file: File;
+  files: File[];
   advisor: Advisor;
   items: ChecklistItem[];
-  processingMode: ProcessingMode;
-  onProcessingModeChange: (mode: ProcessingMode) => void;
-  disabled: boolean;
 }) {
   const custom = items.filter(isCustomQuestion).length;
   return (
     <div className="grid gap-3 text-sm">
-      <div role="radiogroup" aria-label="When to process" className="flex flex-wrap gap-2">
-        {MODE_OPTIONS.map((option) => (
-          <Button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={processingMode === option.value}
-            variant={processingMode === option.value ? "default" : "outline"}
-            disabled={disabled}
-            onClick={() => onProcessingModeChange(option.value)}
-          >
-            {option.label}
-          </Button>
-        ))}
+      <div>
+        <b>Files:</b>
+        <ul className="grid gap-0.5">
+          {files.map((file) => (
+            <li key={fileId(file)}>
+              {file.name} ({sizeMb(file)} MB)
+            </li>
+          ))}
+        </ul>
       </div>
-      {processingMode === "batch" && (
-        <p role="note" className="rounded-md bg-blue-soft px-3 py-2">
-          Batch jobs run at 8pm SGT on weekdays.
-        </p>
-      )}
-      <p>
-        <b>File:</b> {file.name} ({(file.size / (1024 * 1024)).toFixed(1)} MB)
-      </p>
       <p>
         <b>Advisor:</b> {advisor.fullName} ({advisor.employeeId}) · {advisor.department}
       </p>
@@ -386,6 +394,71 @@ function ReviewStep({
           </li>
         ))}
       </ol>
+      <p role="note" className="rounded-md bg-blue-soft px-3 py-2">
+        Tonight: processed at 8pm SGT on weekdays. The audio is deleted after processing, so
+        playback won't be available.
+      </p>
+    </div>
+  );
+}
+
+function UploadProgress({
+  items,
+  onRetry,
+}: {
+  items: UploadItem[];
+  onRetry: (key: string) => void;
+}) {
+  const settled = items.every((item) => item.status !== "uploading");
+  const done = items.filter((item) => item.status === "done").length;
+  return (
+    <div className="grid gap-3 text-sm">
+      {settled && (
+        <p role="status" className="font-medium">
+          {done} of {items.length} uploaded
+        </p>
+      )}
+      <ul className="grid gap-2">
+        {items.map((item) => {
+          const percent = Math.round(item.progress * 100);
+          return (
+            <li key={item.key} className="grid gap-1 rounded-md border p-2">
+              <div className="flex items-center justify-between gap-3">
+                <span>{item.file.name}</span>
+                <span className={item.status === "failed" ? "text-destructive" : undefined}>
+                  {item.status === "uploading" && `Uploading ${percent}%`}
+                  {item.status === "done" && "Uploaded"}
+                  {item.status === "failed" && `Failed: ${item.error}`}
+                </span>
+              </div>
+              <div
+                role="progressbar"
+                aria-valuenow={percent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${item.file.name} upload progress`}
+                className="h-1.5 overflow-hidden rounded-full bg-muted"
+              >
+                <div
+                  className={`h-full ${item.status === "failed" ? "bg-destructive" : "bg-primary"}`}
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+              {item.status === "failed" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="justify-self-start"
+                  aria-label={`Retry ${item.file.name}`}
+                  onClick={() => onRetry(item.key)}
+                >
+                  Retry
+                </Button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

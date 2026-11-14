@@ -40,10 +40,12 @@ export function listPollInterval(assets: MediaAsset[] | undefined): number | fal
   return open.length > 0 ? BATCH_POLL_MS : false;
 }
 
+export const MEDIA_ASSETS_QUERY_KEY = ["mediaAssets"] as const;
+
 // Logged-out or errored callers still see the mock queue, so this never retries or throws.
 export function useMediaAssetList() {
   return useQuery({
-    queryKey: ["mediaAssets"],
+    queryKey: MEDIA_ASSETS_QUERY_KEY,
     queryFn: listMediaAssets,
     retry: false,
     refetchInterval: (query) => listPollInterval(query.state.data),
