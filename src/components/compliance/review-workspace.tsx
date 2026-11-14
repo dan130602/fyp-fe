@@ -146,7 +146,7 @@ function RecordingInProgress({
           <p className="subtle">
             <strong>Analysis in progress.</strong> Check back once the compliance pipeline has
             processed this recording.
-            {isBatch && " Batch jobs run at 8pm SGT on weekdays."}
+            {isBatch && " Tonight: processed at 8pm SGT on weekdays."}
           </p>
           <div className="rule-heading">
             <h2>Transcript</h2>

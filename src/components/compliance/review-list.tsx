@@ -109,7 +109,7 @@ const STATUS_OPTIONS: { label: string; dot: string }[] = [
   { label: "Passed", dot: "bg-green" },
   { label: "Awaiting analysis", dot: "bg-blue" },
   { label: "Pending", dot: "bg-blue" },
-  { label: "Queued for the next batch", dot: "bg-blue" },
+  { label: "Queued for tonight", dot: "bg-blue" },
   { label: "Processing", dot: "bg-blue" },
   { label: "Failed", dot: "bg-red" },
 ];
@@ -123,7 +123,7 @@ function statusOf(row: ReviewRow): { label: string; tone: Tone } {
     case "PENDING":
       return { label: "Pending", tone: "info" };
     case "QUEUED":
-      return { label: "Queued for the next batch", tone: "info" };
+      return { label: "Queued for tonight", tone: "info" };
     case "PROCESSING":
       return { label: "Processing", tone: "info" };
     default: {
