@@ -10,6 +10,10 @@
   display: grid;
   grid-template-columns: 244px 1fr;
 }
+/* No sidebar: the management view is the dashboard alone. */
+.app.app-full {
+  grid-template-columns: 1fr;
+}
 .app aside {
   display: flex;
   flex-direction: column;

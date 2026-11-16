@@ -13,13 +13,18 @@ import {
 import type { PageId } from "./sidebar.tsx";
 
 interface DashboardProps {
-  setPage: (page: PageId) => void;
+  /** Officer view only. Omitted for the read-only management view, which has no review queue. */
+  setPage?: (page: PageId) => void;
+  title?: string;
 }
 
 const ALL_CALLS: CallsScope = { advisorId: null, label: "All calls" };
 
-/** Landing page for the compliance officer: org-wide numbers and what to look at first. */
-export default function Dashboard({ setPage }: DashboardProps) {
+/** Org-wide numbers: the officer's landing page, and the read-only management view. */
+export default function Dashboard({
+  setPage,
+  title = "Compliance review command",
+}: DashboardProps) {
   const [filters, setFilters] = useState<DashboardFilters>({ from: "", to: "", department: "" });
   const [callsScope, setCallsScope] = useState<CallsScope | null>(null);
   const { data: advisors } = useAdvisors();
@@ -29,15 +34,17 @@ export default function Dashboard({ setPage }: DashboardProps) {
     <>
       <section className="heading">
         <div>
-          <h1>Compliance review command</h1>
+          <h1>{title}</h1>
           <p>
             A live view of automated call reviews, checklist outcomes, and work requiring expert
             attention.
           </p>
         </div>
-        <div className="actions">
-          <Button onClick={() => setPage("reviews")}>Open review queue</Button>
-        </div>
+        {setPage && (
+          <div className="actions">
+            <Button onClick={() => setPage("reviews")}>Open review queue</Button>
+          </div>
+        )}
       </section>
       <section className="dashboard-filters" aria-label="Dashboard filters">
         <label className="dashboard-filter">

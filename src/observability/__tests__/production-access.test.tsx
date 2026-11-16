@@ -27,6 +27,9 @@ vi.mock("../../auth/current-user.ts", () => ({
 vi.mock("../../components/observability/observability-dashboard.tsx", () => ({
   default: () => <div>Live production dashboard</div>,
 }));
+vi.mock("../../components/compliance/dashboard.tsx", () => ({
+  default: ({ title }: { title: string }) => <h1>{title}</h1>,
+}));
 describe("production data access from the public developer route", () => {
   beforeEach(() => {
     state.role = null;
@@ -42,7 +45,8 @@ describe("production data access from the public developer route", () => {
     expect(screen.queryByText("Live production dashboard")).not.toBeInTheDocument();
     expect(screen.getByText("Sign in to view production observability")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Sign in to view dashboard" })).toHaveAttribute(
-      "href", "/login?next=production",
+      "href",
+      "/login?next=production",
     );
   });
   it("does not mount it for an officer", () => {

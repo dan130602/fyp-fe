@@ -1,29 +1,28 @@
-import "../components/shared/shell.css";
+import { Badge } from "@/components/ui/badge.tsx";
+import Dashboard from "../components/compliance/dashboard.tsx";
+import "./compliance-officer.css";
 
 /**
- * Compliance manager view — placeholder.
- *
- * Read-only aggregate reporting. When it is built it becomes this file plus the
- * data hooks it needs; the route and the role guard in app.jsx already exist.
+ * Management view (ADMIN, SUPER_ADMIN, MANAGER): the org-wide compliance dashboard, read-only.
+ * No review queue and no verdict changes — a manager reads outcomes, they do not sign off on them.
  */
 export default function Management() {
   return (
-    <div className="placeholder">
-      <h1>Management overview</h1>
-      <p className="lead">Read-only aggregate reporting for compliance managers. Coming soon.</p>
-      <div className="placeholder-card">
-        <h2>Planned for this view</h2>
-        <p>
-          No call-level decisions and no verdict changes — a manager reads outcomes, they do not
-          sign off on them.
-        </p>
-        <ul>
-          <li>Call review status across the current review window</li>
-          <li>Checklist completion rates by business area</li>
-          <li>Pass, fail, and unresolved rates over time</li>
-          <li>Outstanding items and ageing escalations</li>
-        </ul>
-      </div>
+    <div className="app app-full">
+      <main>
+        <header>
+          <span>
+            Management / <b>Management dashboard</b>
+          </span>
+          <div>
+            <strong>System status:</strong>
+            <Badge variant="pass">● Processing normally</Badge>
+          </div>
+        </header>
+        <div className="page">
+          <Dashboard title="Management overview" />
+        </div>
+      </main>
     </div>
   );
 }
