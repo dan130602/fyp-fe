@@ -15,10 +15,11 @@ export interface CurrentUser {
   status: UserStatus;
 }
 
-/** Backend MANAGER folds into ADMIN — the frontend has no separate manager role. */
+/** SUPER_ADMIN folds into ADMIN for routing; MANAGER keeps its own role (management view only). */
 export function roleFromBackend(role: BackendRole): Role {
   if (role === "DEVELOPER") return ROLES.DEVELOPER;
-  if (role === "ADMIN" || role === "MANAGER") return ROLES.ADMIN;
+  if (role === "ADMIN" || role === "SUPER_ADMIN") return ROLES.ADMIN;
+  if (role === "MANAGER") return ROLES.MANAGER;
   return ROLES.OFFICER;
 }
 

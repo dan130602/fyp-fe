@@ -10,11 +10,15 @@ describe("BACKEND_ROLE_LABELS", () => {
   });
 
   it("gives ADMIN and MANAGER distinct labels", () => {
-    // Distinct from ROLE_LABELS[ROLES.ADMIN] in auth/roles.ts, which folds MANAGER into ADMIN
-    // for routing and labels both as "Compliance manager". This table shows both roles at once,
-    // so collapsing their labels here would defeat the table's purpose.
     expect(BACKEND_ROLE_LABELS[BACKEND_ROLES.ADMIN]).not.toBe(
       BACKEND_ROLE_LABELS[BACKEND_ROLES.MANAGER],
+    );
+  });
+
+  it("gives SUPER_ADMIN and ADMIN distinct labels", () => {
+    // auth/roles.ts folds SUPER_ADMIN into ADMIN for routing; this table must still tell them apart.
+    expect(BACKEND_ROLE_LABELS[BACKEND_ROLES.SUPER_ADMIN]).not.toBe(
+      BACKEND_ROLE_LABELS[BACKEND_ROLES.ADMIN],
     );
   });
 });

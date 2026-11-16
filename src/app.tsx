@@ -47,7 +47,10 @@ export default function App() {
                 </AppShell>
               }
             />
-            <Route path={ROUTES.MANAGEMENT} element={guarded([ROLES.ADMIN], <Management />)} />
+            <Route
+              path={ROUTES.MANAGEMENT}
+              element={guarded([ROLES.ADMIN, ROLES.MANAGER], <Management />)}
+            />
             <Route path={ROUTES.ADMIN_USERS} element={guarded([ROLES.ADMIN], <AdminUsers />)} />
             <Route path="*" element={<RoleHome />} />
           </Routes>

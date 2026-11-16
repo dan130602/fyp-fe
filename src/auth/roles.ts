@@ -3,6 +3,7 @@ import { ROUTES } from "../routes.ts";
 
 export const ROLES = {
   ADMIN: "ADMIN",
+  MANAGER: "MANAGER",
   OFFICER: "COMPLIANCE_OFFICER",
   DEVELOPER: "DEVELOPER",
 } as const;
@@ -19,12 +20,14 @@ export type LoginResult = { ok: true; user: AuthUser } | { ok: false; error: str
 
 export const ROLE_LABELS: Record<Role, string> = {
   [ROLES.ADMIN]: "Administrator",
+  [ROLES.MANAGER]: "Compliance manager",
   [ROLES.OFFICER]: "Compliance officer",
   [ROLES.DEVELOPER]: "Developer",
 };
 
 export const ROLE_HOME: Record<Role, string> = {
   [ROLES.ADMIN]: ROUTES.MANAGEMENT,
+  [ROLES.MANAGER]: ROUTES.MANAGEMENT,
   [ROLES.OFFICER]: ROUTES.REVIEW,
   [ROLES.DEVELOPER]: `${ROUTES.DEVELOPER}?tab=production`,
 };

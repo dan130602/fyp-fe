@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { homeRouteFor, labelForRole, ROLE_HOME, ROLE_LABELS, ROLES, type Role } from "../roles.ts";
 
-const ALL_ROLES: Role[] = [ROLES.ADMIN, ROLES.OFFICER, ROLES.DEVELOPER];
+const ALL_ROLES: Role[] = [ROLES.ADMIN, ROLES.MANAGER, ROLES.OFFICER, ROLES.DEVELOPER];
 
 describe("ROLE_LABELS and ROLE_HOME", () => {
   it("covers every Role with a label", () => {

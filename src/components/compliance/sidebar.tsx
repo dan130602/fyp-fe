@@ -3,7 +3,7 @@ import { useOutstandingItems } from "@/dashboard/use-dashboard.ts";
 /* Navigation structure, not domain data — it describes the officer view's own
    pages, so it stays here rather than in src/data/. */
 const NAV_ITEMS = [
-  { id: "dashboard", icon: "▦", label: "Management dashboard" },
+  { id: "dashboard", icon: "▦", label: "Compliance dashboard" },
   { id: "reviews", icon: "☷", label: "Review queue" },
   { id: "checklists", icon: "☑", label: "Checklist library" },
   { id: "reports", icon: "▤", label: "Reports & results" },

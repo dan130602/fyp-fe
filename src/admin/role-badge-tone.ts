@@ -5,5 +5,5 @@ import { BACKEND_ROLES, type BackendRole } from "./user-roles.ts";
 export type RoleBadgeTone = "info" | "outline";
 
 export function toneForRole(role: BackendRole): RoleBadgeTone {
-  return role === BACKEND_ROLES.ADMIN ? "info" : "outline";
+  return role === BACKEND_ROLES.ADMIN || role === BACKEND_ROLES.SUPER_ADMIN ? "info" : "outline";
 }
