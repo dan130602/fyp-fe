@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import InternalDeveloper from "../../views/internal-developer.jsx";
@@ -32,15 +32,24 @@ describe("developer production entry point", () => {
     expect(screen.getByText("Live system metrics")).toBeInTheDocument();
     expect(screen.queryByText("Offline experiment comparison")).not.toBeInTheDocument();
   });
-  it("keeps the existing experiment tab separate from production metrics", () => {
+  it("defaults to production without showing tab controls", () => {
     render(
       <MemoryRouter initialEntries={["/developer"]}>
         <InternalDeveloper />
       </MemoryRouter>,
     );
-    expect(screen.getByText("Offline experiment comparison")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Production" }));
+    expect(screen.queryByRole("button", { name: "Ablations" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Production" })).not.toBeInTheDocument();
     expect(screen.getByText("Live system metrics")).toBeInTheDocument();
     expect(screen.queryByText("Offline experiment comparison")).not.toBeInTheDocument();
+  });
+  it("preserves the explicit experiment URL", () => {
+    render(
+      <MemoryRouter initialEntries={["/developer?tab=ablations"]}>
+        <InternalDeveloper />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Offline experiment comparison")).toBeInTheDocument();
+    expect(screen.queryByText("Live system metrics")).not.toBeInTheDocument();
   });
 });
