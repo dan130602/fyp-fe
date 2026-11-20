@@ -21,15 +21,6 @@ export function percentage(value: number | null): string {
     (value > 99.9 && value < 100) || (value > 0 && value < 0.1) ? 2 : value % 1 === 0 ? 0 : 1;
   return `${value.toFixed(digits)}%`;
 }
-function duration(value: number | null): string {
-  if (value === null) return "—";
-  return value < 1_000 ? `${Math.round(value)} ms` : `${(value / 1_000).toFixed(1)} s`;
-}
-function money(value: number | null): string {
-  if (value === null) return "—";
-  if (value > 0 && value < 0.0001) return "< US$0.0001";
-  return `US$${value.toLocaleString("en-SG", { minimumFractionDigits: 2, maximumFractionDigits: value < 1 ? 4 : 2 })}`;
-}
 function time(value: string): string {
   return new Intl.DateTimeFormat("en-SG", {
     day: "2-digit",
@@ -337,7 +328,7 @@ export function ObservabilityView({
             Production intelligence
           </div>
           <h1>Observability</h1>
-          <p>AI performance, processing costs and officer review changes.</p>
+          <p>Compliance performance and officer review changes.</p>
         </div>
         <div className="obs-toolbar">
           <label>
@@ -386,31 +377,6 @@ export function ObservabilityView({
         </div>
       )}
       <div className="obs-operational-grid">
-        <section className="obs-summary-card">
-          <div>
-            Saved-result chat cost{" "}
-            <Help label="About saved-result chat cost" text={data.cost.scope} />
-          </div>
-          <strong>{money(data.cost.reportedUsd)}</strong>
-          <small>
-            {number(data.cost.pricedResults)} / {number(data.counts.savedResults)} saved results
-            priced
-            {data.cost.unknownResults > 0
-              ? ` · ${number(data.cost.unknownResults)} unavailable`
-              : ""}
-          </small>
-        </section>
-        <section className="obs-summary-card">
-          <div>
-            AI processing latency · p95{" "}
-            <Help label="About AI processing latency" text={data.latency.scope} />
-          </div>
-          <strong>{duration(data.latency.p95Ms)}</strong>
-          <small>
-            Median {duration(data.latency.p50Ms)} · {number(data.latency.measuredResults)} timed
-            results
-          </small>
-        </section>
         <section className="obs-summary-card">
           <div>
             Active officer overrides{" "}
@@ -529,81 +495,8 @@ export function ObservabilityView({
           </p>
         )}
       </section>
-      <div className="obs-two-grid obs-detail-grid">
-        <section className="obs-panel">
-          <div className="obs-panel-heading">
-            <h2>Stage latency</h2>
-            <span className="obs-reference">Processing only</span>
-          </div>
-          {data.stages.length ? (
-            <table className="obs-table obs-compact-table">
-              <thead>
-                <tr>
-                  <th>Stage</th>
-                  <th>Median</th>
-                  <th>p95</th>
-                  <th>Observations</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.stages.map((stage) => (
-                  <tr key={stage.stage}>
-                    <td>{stage.stage.replaceAll("_", " ")}</td>
-                    <td>{duration(stage.p50Ms)}</td>
-                    <td>{duration(stage.p95Ms)}</td>
-                    <td>{number(stage.count)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="obs-empty-detail">Stage timing appears after an instrumented analysis.</p>
-          )}
-        </section>
-        <section className="obs-panel">
-          <div className="obs-panel-heading">
-            <h2>Model usage</h2>
-            <span className="obs-reference">Reported tokens</span>
-          </div>
-          {data.models.length ? (
-            <table className="obs-table obs-compact-table">
-              <thead>
-                <tr>
-                  <th>Model</th>
-                  <th>Input</th>
-                  <th>Output</th>
-                  <th>Cache reads</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.models.map((model) => (
-                  <tr key={model.model}>
-                    <td>
-                      <code>{model.model}</code>
-                    </td>
-                    <td>{number(model.inputTokens)}</td>
-                    <td>{number(model.outputTokens)}</td>
-                    <td>{number(model.cacheReadTokens)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="obs-empty-detail">Token usage appears after an instrumented analysis.</p>
-          )}
-          <p className="obs-detail-note">
-            Reasoning is included in output tokens. Cache reads are a subset of input, not
-            additional tokens.
-          </p>
-        </section>
-      </div>
       <footer className="obs-footer">
         <span>Read-only production reporting · no AI verdicts are changed here.</span>
-        <span>
-          {data.legacyResults > 0
-            ? `${number(data.legacyResults)} saved results lack telemetry.`
-            : "Costs are estimates of reported chat usage."}
-        </span>
       </footer>
     </main>
   );
@@ -617,7 +510,7 @@ export default function ObservabilityDashboard() {
       <main className="obs-page obs-loading" role="status">
         <div className="obs-skeleton obs-skeleton-heading" />
         <div className="obs-operational-grid">
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2].map((i) => (
             <div key={i} className="obs-skeleton" />
           ))}
         </div>

@@ -29,17 +29,8 @@ export default function InternalDeveloper() {
   const questions = useChecklistQuestions();
   const dataset = useEvalDataset();
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get("tab") === "production" ? "production" : "ablations";
-  const setTab = (next) =>
-    setSearchParams(
-      (current) => {
-        const params = new URLSearchParams(current);
-        params.set("tab", next);
-        return params;
-      },
-      { replace: true },
-    );
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "ablations" ? "ablations" : "production";
   const [openId, setOpenId] = useState("R008");
   const [filter, setFilter] = useState("All");
 
@@ -69,25 +60,6 @@ export default function InternalDeveloper() {
               {dataset.shape}
             </div>
           )}
-        </div>
-
-        <div className="tabs">
-          <button
-            type="button"
-            className="tb"
-            data-on={tab === "ablations"}
-            onClick={() => setTab("ablations")}
-          >
-            Ablations
-          </button>
-          <button
-            type="button"
-            className="tb"
-            data-on={tab === "production"}
-            onClick={() => setTab("production")}
-          >
-            Production
-          </button>
         </div>
 
         {tab === "ablations" && (
